@@ -96,10 +96,10 @@ void enc_counter_R(){
 void timer_callback(timer_callback_args_t *arg){
     float enc_diff[2];
     float radius;
-    float theta;
-    float theta1;
-    float x;
-    float y;
+    float global_theta;
+    float local_theta;
+    float local_x;
+    float local_y;
     static int prev_enc[2];
 
     /*前回からの移動量*/
@@ -117,21 +117,21 @@ void timer_callback(timer_callback_args_t *arg){
     enc_diff[1] = TIER_DIAMETER * PI * enc_diff[1] / 12.f;
 
     /*移動距離を位置と方向に変換*/
-    theta = (enc_diff[0] - enc_diff[1])/ ROBOT_WIDTH;
-    if(theta > 360) theta -= 360;
+    local_theta = (enc_diff[0] - enc_diff[1])/ ROBOT_WIDTH;
+    if(local_theta > 360) theta -= 360;
   
     if(enc_diff[0] == enc_diff[1]){
         robot.y += enc_diff[0];
     }else{
         radius = ROBOT_WIDTH * (enc_diff[0] + enc_diff[1]) / (enc_diff[0] - enc_diff[1]);
         rad1 = radius;
-        theta1 = robot.headding * 2 * PI / 360;
-        x = radius * (1 - cos(theta));
-        y = radius * sin(theta);
-        robot.x += y * sin(theta1) + x * cos(theta1);
-        robot.y += y * cos(theta1) - x * sin(theta1);
+        global_theta = robot.headding * 2 * PI / 360;
+        local_x = radius * (1 - cos(local_theta));
+        local_y = radius * sin(local_theta);
+        robot.x += local_y * sin(global_theta) + local_x * cos(global_theta);
+        robot.y += local_y * cos(global_theta) - local_x * sin(global_theta);
         
     }
-    robot.headding += 360 * theta / (2 * PI);
+    robot.headding += 360 * local_theta / (2 * PI);
     if(robot.headding > 360) robot.headding -= 360;
 }
