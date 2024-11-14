@@ -109,6 +109,8 @@ void timer_callback(timer_callback_args_t *arg){
     prev_enc[0] = enc[0].count;
     prev_enc[1] = enc[1].count;
 
+    /*割り込みを許可*/
+    interrupts();
 
     /*エンコーダのカウントを移動距離[mm]に変換*/
     enc_diff[0] = TIER_DIAMETER * PI * enc_diff[0] / 12.f;
