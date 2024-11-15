@@ -4,6 +4,13 @@
 #define ENC_L_PIN 2
 #define ENC_R_PIN 3
 
+#define Motor_L_A_PIN 7
+#define Motor_L_B_PIN 8
+#define Motor_L_PWM_PIN 9
+#define Motor_R_A_PIN 11
+#define Motor_R_B_PIN 12
+#define Motor_R_PWM_PIN 10
+
 /*定数*/
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
@@ -31,6 +38,21 @@ void setup() {
     /*IO設定*/
     pinMode(ENC_L_PIN, INPUT_PULLUP);
     pinMode(ENC_R_PIN, INPUT_PULLUP);
+
+    digitalWrite(Motor_L_A_PIN, LOW);
+    digitalWrite(Motor_L_B_PIN, LOW);
+    digitalWrite(Motor_L_PWM_PIN, LOW);
+    digitalWrite(Motor_R_A_PIN, LOW);
+    digitalWrite(Motor_R_B_PIN, LOW);
+    digitalWrite(Motor_R_PWM_PIN, LOW);
+
+    pinMode(Motor_L_A_PIN, OUTPUT);
+    pinMode(Motor_L_B_PIN, OUTPUT);
+    pinMode(Motor_L_PWM_PIN, OUTPUT);
+    pinMode(Motor_R_A_PIN, OUTPUT);
+    pinMode(Motor_R_B_PIN, OUTPUT);
+    pinMode(Motor_R_PWM_PIN, OUTPUT);
+
 
     /*エンコーダ割り込み設定*/
     attachInterrupt(digitalPinToInterrupt(ENC_L_PIN), enc_counter_L, CHANGE);
@@ -74,7 +96,7 @@ void loop() {
     pretime = time;
   }
 
-
+    
 }
 
 void enc_counter_L(){
