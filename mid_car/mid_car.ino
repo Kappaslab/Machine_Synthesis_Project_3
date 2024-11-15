@@ -84,9 +84,9 @@ void loop() {
   
   time = millis();
   if(time - pretime > 500){
-    Serial.print(time);
+    Serial.print(enc[0].count);
     Serial.print(",");
-    Serial.print(robot.v_L + robot.v_R);
+    Serial.print(enc[1].count);
     Serial.print(",");
     Serial.print(rad1);
     Serial.print(",");
