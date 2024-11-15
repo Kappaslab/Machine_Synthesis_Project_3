@@ -84,7 +84,7 @@ void loop() {
     unsigned long current_time;
     static unsigned long pretime;
 
-    time = millis();
+    current_time = millis();
     if(current_time - pretime > 500){
         Serial.print(current_time);
         Serial.print(",");
