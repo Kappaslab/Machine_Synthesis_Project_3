@@ -90,8 +90,6 @@ void loop() {
         Serial.print(",");
         Serial.print(robot.v);
         Serial.print(",");
-        Serial.print(rad1);
-        Serial.print(",");
         Serial.print(robot.headding);
         Serial.print(",");
         Serial.print(robot.x);
