@@ -29,8 +29,6 @@ typedef struct rbt_str{
     float headding = 0.f;
     float x = 0.f;
     float y = 0.f;
-    float v_L = 0.f;
-    float v_R = 0.f;
 } ROBOT_STATE;
 
 volatile ENC_STATE enc[2];
@@ -118,7 +116,7 @@ void enc_counter_R(){
 }
 
 void timer_callback(timer_callback_args_t *arg){
-    int enc_diff[2];
+    float enc_diff[2];
     float radius;
     float global_theta;
     float local_theta;
@@ -137,17 +135,17 @@ void timer_callback(timer_callback_args_t *arg){
     interrupts();
 
     /*エンコーダのカウントを移動距離[mm]に変換*/
-    robot.v_L = TIER_DIAMETER * PI * enc_diff[0] / 12.f;
-    robot.v_R = TIER_DIAMETER * PI * enc_diff[1] / 12.f;
+    enc_diff[0] = TIER_DIAMETER * PI * enc_diff[0] / 12.f;
+    enc_diff[1] = TIER_DIAMETER * PI * enc_diff[1] / 12.f;
 
     /*移動距離を位置と方向に変換*/
-    local_theta = (robot.v_L - robot.v_R)/ ROBOT_WIDTH;
+    local_theta = (enc_diff[0] - enc_diff[1])/ ROBOT_WIDTH;
     if(local_theta > 360) theta -= 360;
   
-    if(robot.v_L == robot.v_R){
-        robot.y += robot.v_L;
+    if(enc_diff[0] == enc_diff[1]){
+        robot.y += enc_diff[0];
     }else{
-        radius = ROBOT_WIDTH * (robot.v_L + robot.v_R) / (robot.v_L - robot.v_R);
+        radius = ROBOT_WIDTH * (enc_diff[0] + enc_diff[1]) / (enc_diff[0] - enc_diff[1]);
         rad1 = radius;
         global_theta = robot.headding * 2 * PI / 360;
         local_x = radius * (1 - cos(local_theta));
