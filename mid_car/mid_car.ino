@@ -4,10 +4,18 @@
 #define ENC_L_PIN 2
 #define ENC_R_PIN 3
 
+#define Motor_L_A_PIN 7
+#define Motor_L_B_PIN 8
+#define Motor_L_PWM_PIN 9
+#define Motor_R_A_PIN 11
+#define Motor_R_B_PIN 12
+#define Motor_R_PWM_PIN 10
+
 /*定数*/
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
 #define ROBOT_WIDTH 105 //[mm]
+#define INTERRUPT_FREQ 20//[Hz]
 
 
 FspTimer time_interrupt;
@@ -22,6 +30,9 @@ typedef struct rbt_str{
     float headding = 0.f;
     float x = 0.f;
     float y = 0.f;
+    float v_L = 0.f;
+    float v_R = 0.f;
+    float v = 0.f;
 } ROBOT_STATE;
 
 volatile ENC_STATE enc[2];
@@ -31,6 +42,21 @@ void setup() {
     /*IO設定*/
     pinMode(ENC_L_PIN, INPUT_PULLUP);
     pinMode(ENC_R_PIN, INPUT_PULLUP);
+
+    digitalWrite(Motor_L_A_PIN, LOW);
+    digitalWrite(Motor_L_B_PIN, LOW);
+    digitalWrite(Motor_L_PWM_PIN, LOW);
+    digitalWrite(Motor_R_A_PIN, LOW);
+    digitalWrite(Motor_R_B_PIN, LOW);
+    digitalWrite(Motor_R_PWM_PIN, LOW);
+
+    pinMode(Motor_L_A_PIN, OUTPUT);
+    pinMode(Motor_L_B_PIN, OUTPUT);
+    pinMode(Motor_L_PWM_PIN, OUTPUT);
+    pinMode(Motor_R_A_PIN, OUTPUT);
+    pinMode(Motor_R_B_PIN, OUTPUT);
+    pinMode(Motor_R_PWM_PIN, OUTPUT);
+
 
     /*エンコーダ割り込み設定*/
     attachInterrupt(digitalPinToInterrupt(ENC_L_PIN), enc_counter_L, CHANGE);
@@ -43,7 +69,7 @@ void setup() {
     if(ch < 0){
         return;
     }
-    time_interrupt.begin(TIMER_MODE_PERIODIC, type, ch, 20.0f, 50.0f,timer_callback, nullptr);
+    time_interrupt.begin(TIMER_MODE_PERIODIC, type, ch, INTERRUPT_FREQ, 50.0f,timer_callback, nullptr);
     time_interrupt.setup_overflow_irq();
     time_interrupt.open();
     time_interrupt.start();
@@ -51,30 +77,32 @@ void setup() {
     Serial.begin(9600);
 }
 
-unsigned long pretime;
+
 
 float rad1;
 
 void loop() {
-  unsigned long time;
-  
-  time = millis();
-  if(time - pretime > 500){
-    Serial.print(enc[0].count);
-    Serial.print(",");
-    Serial.print(enc[1].count);
-    Serial.print(",");
-    Serial.print(rad1);
-    Serial.print(",");
-    Serial.print(robot.headding);
-    Serial.print(",");
-    Serial.print(robot.x);
-    Serial.print(",");
-    Serial.println(robot.y);
-    pretime = time;
-  }
+    unsigned long current_time;
+    static unsigned long pretime;
 
-
+    current_time = millis();
+    if(current_time - pretime > 500){
+        Serial.print(current_time);
+        Serial.print(",");
+        Serial.print(robot.v);
+        Serial.print(",");
+        Serial.print(robot.headding);
+        Serial.print(",");
+        Serial.print(robot.x);
+        Serial.print(",");
+        Serial.println(robot.y);
+        pretime = current_time;
+    }
+    
+    if(robot.headding < 90){
+        move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0);
+    }
+    
 }
 
 void enc_counter_L(){
@@ -118,7 +146,7 @@ void timer_callback(timer_callback_args_t *arg){
 
     /*移動距離を位置と方向に変換*/
     local_theta = (enc_diff[0] - enc_diff[1])/ ROBOT_WIDTH;
-    if(local_theta > 360) theta -= 360;
+    if(local_theta > 360) local_theta -= 360;
   
     if(enc_diff[0] == enc_diff[1]){
         robot.y += enc_diff[0];
@@ -134,4 +162,20 @@ void timer_callback(timer_callback_args_t *arg){
     }
     robot.headding += 360 * local_theta / (2 * PI);
     if(robot.headding > 360) robot.headding -= 360;
+
+    /*速度情報の更新*/
+    robot.v_L = enc_diff[0];
+    robot.v_R = enc_diff[1];
+    robot.v = (robot.v_L + robot.v_R) / 2;
+}
+
+void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int R_pwm_pin, float velocity, float direction){
+    enc[0].rotate_forward = true;
+    enc[1].rotate_forward = false;
+    digitalWrite(L_a_pin, enc[0].rotate_forward);
+    digitalWrite(L_b_pin, !enc[0].rotate_forward);
+    digitalWrite(R_a_pin, enc[1].rotate_forward);
+    digitalWrite(R_b_pin, !enc[1].rotate_forward);
+    analogWrite(L_pwm_pin, map(velocity, 0, 511, 0, 255));
+    analogWrite(R_pwm_pin, map(velocity, 0, 511, 0, 255));
 }
