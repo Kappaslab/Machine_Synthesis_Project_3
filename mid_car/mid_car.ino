@@ -15,6 +15,7 @@
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
 #define ROBOT_WIDTH 105 //[mm]
+#define INTERRUPT_FREQ 20//[Hz]
 
 
 FspTimer time_interrupt;
@@ -68,7 +69,7 @@ void setup() {
     if(ch < 0){
         return;
     }
-    time_interrupt.begin(TIMER_MODE_PERIODIC, type, ch, 20.0f, 50.0f,timer_callback, nullptr);
+    time_interrupt.begin(TIMER_MODE_PERIODIC, type, ch, INTERRUPT_FREQ, 50.0f,timer_callback, nullptr);
     time_interrupt.setup_overflow_irq();
     time_interrupt.open();
     time_interrupt.start();
@@ -97,8 +98,11 @@ void loop() {
         Serial.println(robot.y);
         pretime = current_time;
     }
-
-    move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0);
+    
+    if(robot.headding < 90){
+        move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0);
+    }
+    
 }
 
 void enc_counter_L(){
