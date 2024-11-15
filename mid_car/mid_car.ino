@@ -100,7 +100,7 @@ void loop() {
         pretime = current_time;
     }
 
-    
+    move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0);
 }
 
 void enc_counter_L(){
@@ -165,4 +165,15 @@ void timer_callback(timer_callback_args_t *arg){
     robot.v_L = enc_diff[0];
     robot.v_R = enc_diff[1];
     robot.v = (robot.v_L + robot.v_R) / 2;
+}
+
+void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int R_pwm_pin, float velocity, float direction){
+    enc[0].rotate_forward = true;
+    enc[1].rotate_forward = false;
+    digitalWrite(L_a_pin, enc[0].rotate_forward);
+    digitalWrite(L_b_pin, !enc[0].rotate_forward);
+    digitalWrite(R_a_pin, enc[1].rotate_forward);
+    digitalWrite(R_b_pin, !enc[1].rotate_forward);
+    analogWrite(L_pwm_pin, map(velocity, 0, 511, 0, 255));
+    analogWrite(R_pwm_pin, map(velocity, 0, 511, 0, 255));
 }
