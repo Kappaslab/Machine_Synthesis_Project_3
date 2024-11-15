@@ -29,6 +29,9 @@ typedef struct rbt_str{
     float headding = 0.f;
     float x = 0.f;
     float y = 0.f;
+    float v_L = 0.f;
+    float v_R = 0.f;
+    float v = 0.f;
 } ROBOT_STATE;
 
 volatile ENC_STATE enc[2];
@@ -156,4 +159,9 @@ void timer_callback(timer_callback_args_t *arg){
     }
     robot.headding += 360 * local_theta / (2 * PI);
     if(robot.headding > 360) robot.headding -= 360;
+
+    /*速度情報の更新*/
+    robot.v_L = enc_diff[0];
+    robot.v_R = enc_diff[1];
+    robot.v = (robot.v_L + robot.v_R) / 2;
 }
