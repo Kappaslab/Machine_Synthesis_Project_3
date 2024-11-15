@@ -76,28 +76,29 @@ void setup() {
     Serial.begin(9600);
 }
 
-unsigned long pretime;
+
 
 float rad1;
 
 void loop() {
-  unsigned long time;
-  
-  time = millis();
-  if(time - pretime > 500){
-    Serial.print(enc[0].count);
-    Serial.print(",");
-    Serial.print(enc[1].count);
-    Serial.print(",");
-    Serial.print(rad1);
-    Serial.print(",");
-    Serial.print(robot.headding);
-    Serial.print(",");
-    Serial.print(robot.x);
-    Serial.print(",");
-    Serial.println(robot.y);
-    pretime = time;
-  }
+    unsigned long current_time;
+    static unsigned long pretime;
+
+    time = millis();
+    if(current_time - pretime > 500){
+        Serial.print(current_time);
+        Serial.print(",");
+        Serial.print(robot.v);
+        Serial.print(",");
+        Serial.print(rad1);
+        Serial.print(",");
+        Serial.print(robot.headding);
+        Serial.print(",");
+        Serial.print(robot.x);
+        Serial.print(",");
+        Serial.println(robot.y);
+        pretime = current_time;
+    }
 
     
 }
