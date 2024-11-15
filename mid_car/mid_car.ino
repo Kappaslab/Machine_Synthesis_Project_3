@@ -144,7 +144,7 @@ void timer_callback(timer_callback_args_t *arg){
 
     /*移動距離を位置と方向に変換*/
     local_theta = (enc_diff[0] - enc_diff[1])/ ROBOT_WIDTH;
-    if(local_theta > 360) theta -= 360;
+    if(local_theta > 360) local_theta -= 360;
   
     if(enc_diff[0] == enc_diff[1]){
         robot.y += enc_diff[0];
