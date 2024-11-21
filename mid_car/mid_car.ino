@@ -14,8 +14,10 @@
 /*定数*/
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
-#define ROBOT_WIDTH 105 //[mm]
+#define ROBOT_WIDTH 104 //[mm]
 #define INTERRUPT_FREQ 20//[Hz]
+#define DIRECTION_MAX 100
+#define VELOCITY_MAX 100//[mm/s]
 
 
 FspTimer time_interrupt;
@@ -168,24 +170,59 @@ void timer_callback(timer_callback_args_t *arg){
         local_y = radius * sin(local_theta);
         robot.x += local_y * sin(global_theta) + local_x * cos(global_theta);
         robot.y += local_y * cos(global_theta) - local_x * sin(global_theta);
-        
     }
     robot.headding += 360 * local_theta / (2 * PI);
     if(robot.headding > 360) robot.headding -= 360;
 
     /*速度情報の更新*/
-    robot.v_L = enc_diff[0];
-    robot.v_R = enc_diff[1];
-    robot.v = (robot.v_L + robot.v_R) / 2;
+    robot.v_L = enc_diff[0] * INTERRUPT_FREQ;
+    robot.v_R = enc_diff[1] * INTERRUPT_FREQ;
+    robot.v = (robot.v_L + robot.v_R) * INTERRUPT_FREQ / 2;
 }
 
-void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int R_pwm_pin, float velocity, float direction){
-    enc[0].rotate_forward = true;
-    enc[1].rotate_forward = false;
+void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int R_pwm_pin, float velocity,float direction){
+    float L_R_diff;
+    float L_velocity;
+    float R_velocity;
+    int L_output;
+    int R_output;
+
+    /*曲率の最大限を決定*/
+    if(direction > DIRECTION_MAX) direction = DIRECTION_MAX;
+    if(direction < -DIRECTION_MAX) direction = -DIRECTION_MAX;
+    /*+-2/ROBOT_WIDTHに抑える*/
+    direction = map(direction, -DIRECTION_MAX, DIRECTION_MAX, -2/ROBOT_WIDTH, 2/ROBOT_WIDTH);
+    /*左右の回転数さを計算*/
+    L_R_diff = direction * ROBOT_WIDTH * 2 * velocity;
+    /*車輪の移動速度に変換*/
+    L_velocity = 2 * velocity + L_R_diff;
+    R_velocity = 2 * velocity - L_R_diff;
+    /*絶対値をとる*/
+    if(L_velocity < 0){
+        enc[0].rotate_forward = false;
+        L_velocity = -L_velocity;
+    }else{
+        enc[0].rotate_forward = true;
+    }
+    if(R_velocity < 0){
+        enc[1].rotate_forward = false;
+        R_velocity = -R_velocity;
+    }else{
+        enc[1].rotate_forward = true;
+    }
+
+    /*いいかんじに速度を出力に変換*/
+    L_output = L_velocity;//仮
+    R_output = R_velocity;//仮
+
+    /*最大値の制限*/
+    if(L_output > 255) L_output = 255;
+    if(R_output > 255) R_output = 255;
+
     digitalWrite(L_a_pin, enc[0].rotate_forward);
     digitalWrite(L_b_pin, !enc[0].rotate_forward);
     digitalWrite(R_a_pin, enc[1].rotate_forward);
     digitalWrite(R_b_pin, !enc[1].rotate_forward);
-    analogWrite(L_pwm_pin, map(velocity, 0, 511, 0, 255));
-    analogWrite(R_pwm_pin, map(velocity, 0, 511, 0, 255));
+    analogWrite(L_pwm_pin, L_output);
+    analogWrite(R_pwm_pin, R_output);
 }
