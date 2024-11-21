@@ -93,7 +93,9 @@ void loop() {
     if(current_time - pretime > 500){
         Serial.print(current_time);
         Serial.print(",");
-        Serial.print(robot.v);
+        Serial.print(enc[0].count);
+        Serial.print(",");
+        Serial.print(enc[1].count);
         Serial.print(",");
         Serial.print(robot.headding);
         Serial.print(",");
@@ -105,7 +107,7 @@ void loop() {
     
     if(robot.headding < 90){
         digitalWrite(13, HIGH);
-        move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0);
+        move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 250, 0);
     }else{
         digitalWrite(13, LOW);
         move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
