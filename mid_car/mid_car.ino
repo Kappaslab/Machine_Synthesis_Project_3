@@ -196,8 +196,13 @@ void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int
     if(direction < -DIRECTION_MAX) direction = -DIRECTION_MAX;
     noInterrupts();
     /*車輪の移動速度に変換*/
-    L_velocity = 2 * velocity * ( 1 + 2 * direction);
-    R_velocity = 2 * velocity * (1 - 2 * direction);
+    L_velocity = velocity;
+    R_velocity = velocity;
+    if(direction >= 0){
+        R_velocity = R_velocity * (1 - 2 * direction);
+    }else{
+        L_velocity = L_velocity * (1 - 2 * direction);
+    }
     /*絶対値をとる*/
     if(L_velocity < 0){
         enc[0].rotate_forward = false;
