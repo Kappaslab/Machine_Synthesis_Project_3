@@ -219,8 +219,8 @@ void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int
     interrupts();
 
     /*いいかんじに速度を出力に変換*/
-    L_output = map(L_velocity, 0, 2 * VELOCITY_MAX, 0 , 255);//仮
-    R_output = map(R_velocity, 0, 2 * VELOCITY_MAX, 0 , 255);//仮
+    L_output = map(L_velocity, 0, VELOCITY_MAX, 0 , 255);//仮
+    R_output = map(R_velocity, 0, VELOCITY_MAX, 0 , 255);//仮
 
     /*最大値の制限*/
     if(L_output > 255) L_output = 255;
