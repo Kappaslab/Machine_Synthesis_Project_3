@@ -17,8 +17,8 @@
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
 #define ROBOT_WIDTH 104 //[mm]
-#define ENC_SLIT 12 //[mm]
-#define INTERRUPT_FREQ 25//[Hz]
+#define ENC_SLIT 12
+#define INTERRUPT_FREQ 20//[Hz]
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 100//[mm/s]
 
@@ -94,6 +94,8 @@ float rad1;
 void loop() {
     unsigned long current_time;
     static unsigned long pretime;
+    static int step = 0;
+    static int cup_num = 0;
 
     
     current_time = millis();
@@ -112,6 +114,7 @@ void loop() {
         pretime = current_time;
     }
     
+
     if(robot.headding < 90){
         move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 1);
     }else{
@@ -129,7 +132,6 @@ void enc_counter_R(){
 }
 
 void timer_callback(timer_callback_args_t *arg){
-    digitalWrite(TEST_PIN, HIGH);
     float enc_diff[2];
     float radius;
     float global_theta;
@@ -137,6 +139,7 @@ void timer_callback(timer_callback_args_t *arg){
     float local_x;
     float local_y;
     static int prev_enc[2];
+    static int counter = 0;
 
     if(flag_L){
         if(enc[0].rotate_forward){
@@ -155,45 +158,47 @@ void timer_callback(timer_callback_args_t *arg){
         }
         flag_R = false;
     }
+    counter++;
+    if(counter == 2){
+        digitalWrite(TEST_PIN, HIGH);
+        counter = 0;
+        /*前回からの移動量*/
+        enc_diff[0] = (enc[0].count - prev_enc[0]);
+        enc_diff[1] = (enc[1].count - prev_enc[1]);
+        /*エンコーダデータの更新*/
+        prev_enc[0] = enc[0].count;
+        prev_enc[1] = enc[1].count;
 
+        /*割り込みを許可*/
+        interrupts();
 
-    /*前回からの移動量*/
-    enc_diff[0] = (enc[0].count - prev_enc[0]);
-    enc_diff[1] = (enc[1].count - prev_enc[1]);
-    /*エンコーダデータの更新*/
-    prev_enc[0] = enc[0].count;
-    prev_enc[1] = enc[1].count;
+        /*エンコーダのカウントを移動距離[mm]に変換*/
+        enc_diff[0] = TIER_DIAMETER * PI * enc_diff[0] / ENC_SLIT;
+        enc_diff[1] = TIER_DIAMETER * PI * enc_diff[1] / ENC_SLIT;
 
-    /*割り込みを許可*/
-    interrupts();
+        /*移動距離を位置と方向に変換*/
+        local_theta = (enc_diff[0] - enc_diff[1])/ ROBOT_WIDTH;
+        if(local_theta > 360) local_theta -= 360;
+    
+        if(enc_diff[0] == enc_diff[1]){
+            robot.y += enc_diff[0];
+        }else{
+            radius = ROBOT_WIDTH * (enc_diff[0] + enc_diff[1]) / (enc_diff[0] - enc_diff[1]);
+            rad1 = radius;
+            global_theta = robot.headding * 2 * PI / 360;
+            local_x = radius * (1 - cos(local_theta)) / 4 ; //何故か４で割らねばならない
+            local_y = radius * sin(local_theta) / 4 ; //何故か４で割らねばならない
+            robot.x += local_y * sin(global_theta) + local_x * cos(global_theta);
+            robot.y += local_y * cos(global_theta) - local_x * sin(global_theta);
+        }
+        robot.headding += 360 * local_theta / (2 * PI * 1.25); //何故か1.25で割らねばならない
+        if(robot.headding > 360) robot.headding -= 360;
 
-    /*エンコーダのカウントを移動距離[mm]に変換*/
-    enc_diff[0] = TIER_DIAMETER * PI * enc_diff[0] / ENC_SLIT;
-    enc_diff[1] = TIER_DIAMETER * PI * enc_diff[1] / ENC_SLIT;
-
-    /*移動距離を位置と方向に変換*/
-    local_theta = (enc_diff[0] - enc_diff[1])/ ROBOT_WIDTH;
-    if(local_theta > 360) local_theta -= 360;
-  
-    if(enc_diff[0] == enc_diff[1]){
-        robot.y += enc_diff[0];
-    }else{
-        radius = ROBOT_WIDTH * (enc_diff[0] + enc_diff[1]) / (enc_diff[0] - enc_diff[1]);
-        rad1 = radius;
-        global_theta = robot.headding * 2 * PI / 360;
-        local_x = radius * (1 - cos(local_theta));
-        local_y = radius * sin(local_theta);
-        robot.x += local_y * sin(global_theta) + local_x * cos(global_theta);
-        robot.y += local_y * cos(global_theta) - local_x * sin(global_theta);
+        /*速度情報の更新*/
+        robot.v_L = enc_diff[0] * 10;
+        robot.v_R = enc_diff[1] * 10;
+        robot.v = (robot.v_L + robot.v_R) * 10 / 2;
     }
-    robot.headding += 360 * local_theta / (2 * PI);
-    if(robot.headding > 360) robot.headding -= 360;
-
-    /*速度情報の更新*/
-    robot.v_L = enc_diff[0] * INTERRUPT_FREQ;
-    robot.v_R = enc_diff[1] * INTERRUPT_FREQ;
-    robot.v = (robot.v_L + robot.v_R) * INTERRUPT_FREQ / 2;
-    digitalWrite(TEST_PIN, LOW);
 }
 
 void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int R_pwm_pin, float velocity,float direction){
@@ -216,7 +221,7 @@ void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int
     if(direction >= 0){
         R_velocity = R_velocity * (1 - 2 * direction);
     }else{
-        L_velocity = L_velocity * (1 - 2 * direction);
+        L_velocity = L_velocity * (1 + 2 * direction);
     }
     /*絶対値をとる*/
     if(L_velocity < 0){
