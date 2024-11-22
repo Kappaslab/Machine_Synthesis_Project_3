@@ -11,12 +11,14 @@
 #define Motor_R_B_PIN 12
 #define Motor_R_PWM_PIN 10
 
+#define TEST_PIN 13
+
 /*定数*/
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
 #define ROBOT_WIDTH 104 //[mm]
 #define ENC_SLIT 12 //[mm]
-#define INTERRUPT_FREQ 20//[Hz]
+#define INTERRUPT_FREQ 25//[Hz]
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 100//[mm/s]
 
@@ -41,6 +43,9 @@ typedef struct rbt_str{
 volatile ENC_STATE enc[2];
 volatile ROBOT_STATE robot;
 
+volatile bool flag_L;
+volatile bool flag_R;
+
 void setup() {
     /*IO設定*/
     pinMode(ENC_L_PIN, INPUT_PULLUP);
@@ -52,6 +57,7 @@ void setup() {
     digitalWrite(Motor_R_A_PIN, LOW);
     digitalWrite(Motor_R_B_PIN, LOW);
     digitalWrite(Motor_R_PWM_PIN, LOW);
+    digitalWrite(TEST_PIN, LOW);
 
     pinMode(Motor_L_A_PIN, OUTPUT);
     pinMode(Motor_L_B_PIN, OUTPUT);
@@ -59,9 +65,7 @@ void setup() {
     pinMode(Motor_R_A_PIN, OUTPUT);
     pinMode(Motor_R_B_PIN, OUTPUT);
     pinMode(Motor_R_PWM_PIN, OUTPUT);
-
-    digitalWrite(13, LOW);
-    pinMode(13, OUTPUT);
+    pinMode(TEST_PIN, OUTPUT);
 
 
     /*エンコーダ割り込み設定*/
@@ -109,32 +113,23 @@ void loop() {
     }
     
     if(robot.headding < 90){
-        digitalWrite(13, HIGH);
         move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 1);
     }else{
-        digitalWrite(13, LOW);
         move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
     }
     
 }
 
 void enc_counter_L(){
-    if(enc[0].rotate_forward){
-        enc[0].count ++;
-    }else{
-        enc[0].count --;
-    }
+    flag_L = true;
 }
 
 void enc_counter_R(){
-    if(enc[1].rotate_forward){
-        enc[1].count ++;
-    }else{
-        enc[1].count --;
-    }
+    flag_R = true;
 }
 
 void timer_callback(timer_callback_args_t *arg){
+    digitalWrite(TEST_PIN, HIGH);
     float enc_diff[2];
     float radius;
     float global_theta;
@@ -142,6 +137,25 @@ void timer_callback(timer_callback_args_t *arg){
     float local_x;
     float local_y;
     static int prev_enc[2];
+
+    if(flag_L){
+        if(enc[0].rotate_forward){
+            enc[0].count ++;
+        }else{
+            enc[0].count --;
+        }
+        flag_L = false;
+    }
+    
+    if(flag_R){
+        if(enc[1].rotate_forward){
+            enc[1].count ++;
+        }else{
+            enc[1].count --;
+        }
+        flag_R = false;
+    }
+
 
     /*前回からの移動量*/
     enc_diff[0] = (enc[0].count - prev_enc[0]);
@@ -179,6 +193,7 @@ void timer_callback(timer_callback_args_t *arg){
     robot.v_L = enc_diff[0] * INTERRUPT_FREQ;
     robot.v_R = enc_diff[1] * INTERRUPT_FREQ;
     robot.v = (robot.v_L + robot.v_R) * INTERRUPT_FREQ / 2;
+    digitalWrite(TEST_PIN, LOW);
 }
 
 void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int R_pwm_pin, float velocity,float direction){
