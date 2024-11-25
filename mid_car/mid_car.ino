@@ -17,7 +17,7 @@
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
 #define ROBOT_WIDTH 104 //[mm]
-#define ENC_SLIT 12
+#define ENC_SLIT 24
 #define INTERRUPT_FREQ 20//[Hz]
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 100//[mm/s]
@@ -45,6 +45,8 @@ volatile ROBOT_STATE robot;
 
 volatile bool flag_L;
 volatile bool flag_R;
+
+//int data_array[4][];
 
 void setup() {
     /*IO設定*/
@@ -94,13 +96,15 @@ float rad1;
 void loop() {
     unsigned long current_time;
     static unsigned long pretime;
+    static unsigned long pretime1;
     static int step = 0;
     static int cup_num = 0;
+    static int num = 1;
 
     
     current_time = millis();
     if(current_time - pretime > 500){
-        Serial.print(current_time);
+        Serial.print(step);
         Serial.print(",");
         Serial.print(enc[0].count);
         Serial.print(",");
@@ -113,13 +117,65 @@ void loop() {
         Serial.println(robot.y);
         pretime = current_time;
     }
-    
 
-    if(robot.headding < 90){
-        move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 1);
-    }else{
-        move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
+    if(cup_num >= 2) num = -1;
+    
+    switch (step){
+        case 0:
+            if(current_time > 1000) step ++;
+            break;
+        
+        case 1://カップのほうを向く
+            if(robot.headding < 10){
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 50, num * 1);
+            }else{
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
+                step = 2;
+            }
+            break;
+        
+        case 2://カップに向かって移動
+            if(robot.y < 200){
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, -0.1);
+            }else{
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
+                step = 3;
+                pretime1 = current_time;
+            }
+            break;
+
+        case 3:
+            if(current_time -pretime1 > 1000) step ++;
+            break;
+        
+        case 4://ゴールのほうを向かう
+            if(robot.headding > 5){
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 80, num * -1);
+            }else{
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
+                step = 5;
+            }
+            break;
+
+        case 5:
+            if(robot.y > 600){
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
+            }else if(robot.headding > 5){
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100,-0.5);
+                //step = 5;
+            }else if(robot.headding < -5){
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0.5);
+                //step = 5;
+            }else{
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, -0.2);
+            }
+            break;
+        
+        default:
+            move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
+            break;
     }
+    
     
 }
 
