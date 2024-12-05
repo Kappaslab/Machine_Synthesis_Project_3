@@ -16,7 +16,7 @@
 /*定数*/
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
-#define ROBOT_WIDTH 104 //[mm]
+#define ROBOT_WIDTH 102 //[mm]
 #define ENC_SLIT 24
 #define INTERRUPT_FREQ 20//[Hz]
 #define DIRECTION_MAX 1
@@ -126,7 +126,7 @@ void loop() {
             break;
         
         case 1://カップのほうを向く
-            if(robot.headding < 10){
+            if(robot.headding < 20){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 50, 1);
             }else{
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
@@ -135,7 +135,7 @@ void loop() {
             break;
         
         case 2://カップに向かって移動
-            if(robot.y < 200){
+            if(robot.y < 220){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, -0.1);
             }else{
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
@@ -161,10 +161,10 @@ void loop() {
             if(robot.y > 600){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
                 step = 6;
-            }else if(robot.headding > 2){
+            }else if(robot.headding > 3){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100,-0.5);
                 //step = 5;
-            }else if(robot.headding < -2){
+            }else if(robot.headding < -3){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0.5);
                 //step = 5;
             }else{
@@ -178,22 +178,23 @@ void loop() {
                 step = 7;
                 pretime1 = current_time;
             }else if(robot.headding > 3){
-                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100,-0.5);
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, -100,0.5);
                 //step = 5;
             }else if(robot.headding < -3){
-                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0.5);
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, -100, -0.5);
                 //step = 5;
             }else{
-                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, -0.2);
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, -100, 0.0);
             }
             break;
 
         case 7:
             if(current_time -pretime1 > 1000) step = 8;
+            robot.y = -150;
             break;
         
         case 8://カップのほうを向く
-            if(robot.headding < -10){
+            if(robot.headding > -20){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 50, -1);
             }else{
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
@@ -216,7 +217,7 @@ void loop() {
             break;
         
         case 11://ゴールのほうを向かう
-            if(robot.headding > -5){
+            if(robot.headding < -5){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 80, 1);
             }else{
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
@@ -228,10 +229,10 @@ void loop() {
             if(robot.y > 600){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
                 step = 13;
-            }else if(robot.headding > 2){
+            }else if(robot.headding > 3){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100,-0.5);
                 //step = 5;
-            }else if(robot.headding < -2){
+            }else if(robot.headding < -3){
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0.5);
                 //step = 5;
             }else{
@@ -244,13 +245,13 @@ void loop() {
                 move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
                 step = 0;
             }else if(robot.headding > 3){
-                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100,-0.5);
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, -100, 0.5);
                 //step = 5;
             }else if(robot.headding < -3){
-                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, 0.5);
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, -100, -0.5);
                 //step = 5;
             }else{
-                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 100, -0.2);
+                move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, -100, 0.0);
             }
             break;
 
@@ -378,8 +379,8 @@ void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int
     interrupts();
 
     /*いいかんじに速度を出力に変換*/
-    L_output = map(L_velocity, 0, VELOCITY_MAX, 0 , 255);//仮
-    R_output = map(R_velocity, 0, VELOCITY_MAX, 0 , 255);//仮
+    L_output = map(L_velocity, 0, VELOCITY_MAX, 0 , 128);//仮
+    R_output = map(R_velocity, 0, VELOCITY_MAX, 0 , 128);//仮
 
     /*最大値の制限*/
     if(L_output > 255) L_output = 255;
