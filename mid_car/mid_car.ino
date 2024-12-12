@@ -17,7 +17,7 @@
 #define PI 3.141593
 #define TIER_DIAMETER 35 //[mm]
 #define ROBOT_WIDTH 104 //[mm]
-#define ENC_SLIT 12
+#define ENC_SLIT 40
 #define INTERRUPT_FREQ 20//[Hz]
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 100//[mm/s]
