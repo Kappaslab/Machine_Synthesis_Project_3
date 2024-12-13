@@ -20,6 +20,10 @@ WiFiServer server(80);
 
 volatile bool enc_flag_L = false;
 volatile bool enc_flag_R = false;
+float current_velocity = 0;
+float current_direction = 0;
+float position_x = 0; // フィールド上の仮想座標
+float position_y = 0;
 
 void setup() {
     // ピンモードの設定
@@ -65,9 +69,22 @@ void loop() {
                     command += c;
                 }
             }
+
+            // 現在の速度、角度、座標をクライアントに送信
+            client.print("VELOCITY ");
+            client.print(current_velocity);
+            client.print("\nDIRECTION ");
+            client.print(current_direction);
+            client.print("\nPOSITION ");
+            client.print(position_x);
+            client.print(" ");
+            client.print(position_y);
+            client.print("\n");
         }
         client.stop();
     }
+
+    updatePosition(); // 仮想座標の更新
 }
 
 void parseCommand(String command) {
@@ -76,8 +93,12 @@ void parseCommand(String command) {
 
     if (command.startsWith("MOVE")) {
         sscanf(command.c_str(), "MOVE %f %f", &velocity, &direction);
+        current_velocity = velocity;
+        current_direction = direction;
         move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, velocity, direction);
     } else if (command == "STOP") {
+        current_velocity = 0;
+        current_direction = 0;
         move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
     }
 }
@@ -110,4 +131,10 @@ void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int
 
     analogWrite(L_pwm_pin, L_output);
     analogWrite(R_pwm_pin, R_output);
+}
+
+void updatePosition() {
+    // 簡易的な自己座標更新処理（仮想シミュレーション）
+    position_x += current_velocity * cos(radians(current_direction));
+    position_y += current_velocity * sin(radians(current_direction));
 }
