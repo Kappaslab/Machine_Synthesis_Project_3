@@ -1,112 +1,141 @@
 import processing.net.*;
 
+// クライアント
 Client client;
-String ip = "192.48.56.1"; // ArduinoのIPアドレス
-int port = 80; // Arduinoのポート番号
+String ip = "192.48.56.1";
+int port = 80;
 
 // UI要素
-float centerX, centerY; // 円形の中心位置
-float pointerX, pointerY; // ポインタの位置
-float radius; // ジョイスティックの半径
-boolean isGrasping = false; // 把持機構の状態
-boolean isMoving = false; // ロボットが移動中かどうか
+PVector center;
+float radius;
+PVector pointer;
+boolean grasp = false;
+
+// 表示データ
+float currentVelocity = 0;
+float currentDirection = 0;
+PVector currentPosition = new PVector(0, 0);
 
 void setup() {
-  size(400, 400);
-  client = new Client(this, ip, port); // クライアントを初期化
-  centerX = width / 2;
-  centerY = height / 2;
-  radius = width / 4;
-  pointerX = centerX;
-  pointerY = centerY;
+  size(600, 400); // ウィンドウを拡張
+  center = new PVector(width / 4, height / 2);
+  radius = width / 6;
+  pointer = new PVector(center.x, center.y);
+
+  client = new Client(this, ip, port);
 }
 
 void draw() {
-  background(255);
+  background(240);
 
-  // ジョイスティックの円を描画
-  stroke(0);
-  noFill();
-  ellipse(centerX, centerY, radius * 2, radius * 2);
+  // 左側: コントロールUI
+  drawControlUI();
 
-  // 中心円を描画
-  fill(200);
-  ellipse(centerX, centerY, 50, 50);
+  // 右側: データ表示エリア
+  drawDataDisplay();
 
-  // マウスが押されているとき、ポインタをマウス位置に追従させる
-  if (isMoving) {
-    float dx = mouseX - centerX;
-    float dy = mouseY - centerY;
-    float distance = dist(centerX, centerY, mouseX, mouseY);
-
-    if (distance <= radius) {
-      pointerX = mouseX;
-      pointerY = mouseY;
-    } else {
-      PVector direction = new PVector(dx, dy).normalize().mult(radius);
-      pointerX = centerX + direction.x;
-      pointerY = centerY + direction.y;
-    }
-    sendDirection();
-  } else {
-    pointerX = centerX;
-    pointerY = centerY;
-  }
-
-  // ポインタを描画
-  fill(150, 0, 0);
-  ellipse(pointerX, pointerY, 20, 20);
-
-  // グリップボタンの表示
-  fill(isGrasping ? color(0, 150, 0) : color(150, 0, 0));
-  rect(width - 80, height - 50, 60, 30);
-  fill(255);
-  textAlign(CENTER, CENTER);
-  text("Grasp", width - 50, height - 35);
+  // データを受信
+  receiveData();
 }
 
-// クリック時に移動開始、ボタンの切り替え
-void mousePressed() {
-  // グリップボタンをクリックした場合
-  if (mouseX > width - 80 && mouseX < width - 20 && mouseY > height - 50 && mouseY < height - 20) {
-    isGrasping = !isGrasping; // 把持状態をトグル
-    sendGraspCommand();
+void drawControlUI() {
+  // ジョイスティック領域
+  stroke(0);
+  noFill();
+  ellipse(center.x, center.y, radius * 2, radius * 2);
+
+  // ポインタ
+  fill(100, 150, 255);
+  noStroke();
+  ellipse(pointer.x, pointer.y, 20, 20);
+
+  // グリップボタン
+  fill(grasp ? color(0, 200, 0) : color(200, 0, 0));
+  rect(width / 4 - 50, height - 50, 80, 30, 5);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  text("GRASP", width / 4 - 10, height - 35);
+
+  // 移動コマンドの送信
+  if (client.active() && mousePressed) {
+    float dx = pointer.x - center.x;
+    float dy = pointer.y - center.y;
+    float distance = dist(pointer.x, pointer.y, center.x, center.y);
+    float velocity = map(constrain(distance, 0, radius), 0, radius, 0, 100);
+    float direction = atan2(dy, dx) / PI; // [-1, 1] に正規化
+
+    String command = String.format("MOVE %.2f %.2f\n", velocity, direction);
+    client.write(command);
+  }
+}
+
+void drawDataDisplay() {
+  // 速度、角度、座標を表示
+  fill(0);
+  textAlign(LEFT, CENTER);
+  textSize(16);
+
+  text("Velocity: " + nf(currentVelocity, 0, 2) + " cm/s", width / 2 + 20, 50);
+  text("Direction: " + nf(currentDirection, 0, 2) + "°", width / 2 + 20, 100);
+  text("Position: (" + nf(currentPosition.x, 0, 2) + ", " + nf(currentPosition.y, 0, 2) + ")", width / 2 + 20, 150);
+
+  // グラフ表示
+  stroke(0);
+  noFill();
+  rect(width / 2 + 20, 200, 150, 100);
+  float graphX = width / 2 + 30;
+  float graphY = 250;
+  float barWidth = 30;
+
+  fill(100, 200, 255);
+  rect(graphX, graphY - map(currentVelocity, 0, 100, 0, 100), barWidth, map(currentVelocity, 0, 100, 0, 100));
+  fill(200, 100, 100);
+  rect(graphX + barWidth + 10, graphY - map(abs(currentDirection), 0, 180, 0, 100), barWidth, map(abs(currentDirection), 0, 180, 0, 100));
+}
+
+void receiveData() {
+  if (client.active() && client.available() > 0) {
+    String data = client.readStringUntil('\n');
+    if (data != null) {
+      parseData(data.trim());
+    }
+  }
+}
+
+void parseData(String data) {
+  if (data.startsWith("VELOCITY")) {
+    currentVelocity = float(data.substring(9).trim());
+  } else if (data.startsWith("DIRECTION")) {
+    currentDirection = float(data.substring(10).trim());
+  } else if (data.startsWith("POSITION")) {
+    String[] parts = split(data.substring(9).trim(), ' ');
+    if (parts.length == 2) {
+      currentPosition.set(float(parts[0]), float(parts[1]));
+    }
+  }
+}
+
+void mouseDragged() {
+  if (dist(mouseX, mouseY, center.x, center.y) <= radius) {
+    pointer.set(mouseX, mouseY);
   } else {
-    isMoving = true; // 移動開始
+    pointer.set(PVector.sub(new PVector(mouseX, mouseY), center).normalize().mult(radius).add(center));
   }
 }
 
 void mouseReleased() {
-  isMoving = false; // 移動停止
-  sendStopCommand(); // Arduinoに停止信号を送信
-}
-
-// ポインタの方向と速度に基づきArduinoにデータ送信
-void sendDirection() {
-  if (client.active()) {
-    float dx = pointerX - centerX;
-    float dy = pointerY - centerY;
-    float distance = dist(centerX, centerY, pointerX, pointerY);
-    float speed = map(constrain(distance, 0, radius), 0, radius, 0, 100); // 速度を計算
-    float angle = atan2(dy, dx) * 180 / PI; // 中心からの角度を取得
-
-    // データ形式例: "MOVE angle speed\n"
-    String command = "MOVE " + nf(angle, 0, 2) + " " + nf(speed, 0, 2) + "\n";
-    client.write(command);
-  }
-}
-
-// グリップ状態をArduinoに送信
-void sendGraspCommand() {
-  if (client.active()) {
-    String command = isGrasping ? "GRASP_ON\n" : "GRASP_OFF\n";
-    client.write(command);
-  }
-}
-
-// 停止コマンドをArduinoに送信
-void sendStopCommand() {
   if (client.active()) {
     client.write("STOP\n");
+  }
+  pointer.set(center.x, center.y);
+}
+
+void mousePressed() {
+  if (mouseX >= width / 4 - 50 && mouseX <= width / 4 + 30 && mouseY >= height - 50 && mouseY <= height - 20) {
+    grasp = !grasp;
+    String command = grasp ? "GRASP_ON\n" : "GRASP_OFF\n";
+    if (client.active()) {
+      client.write(command);
+    }
   }
 }
