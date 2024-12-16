@@ -19,14 +19,14 @@
 #define TIER_DIAMETER 37 //[mm]
 #define ROBOT_WIDTH 104 //[mm]
 #define ENC_SLIT 40
-#define INTERRUPT_FREQ 100//[Hz]
+#define INTERRUPT_FREQ 200//[Hz]
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 100//[mm/s]
 
 /* Wi-Fi 設定 */
 const char* ssid = "cafe_03";
 const char* password = "123456789";
-byte IP* = { 192, 48, 56, 1 };
+byte IP[] = { 192, 48, 56, 1 };
 int PORT = 80;
 int status = WL_IDLE_STATUS;
 WiFiServer server(PORT);
@@ -75,7 +75,6 @@ void setup() {
 
     pinMode(TEST_PIN, OUTPUT);
 
-
     /*エンコーダ割り込み設定*/
     attachInterrupt(digitalPinToInterrupt(ENC_L_PIN), enc_counter_L, CHANGE);
     attachInterrupt(digitalPinToInterrupt(ENC_R_PIN), enc_counter_R, CHANGE);
@@ -118,7 +117,7 @@ void enc_counter_L(){
 }
 
 void enc_counter_R(){
-    flag_R = true;
+    enc[1].moved = true;
 }
 
 void timer_callback(timer_callback_args_t *arg){
@@ -131,22 +130,22 @@ void timer_callback(timer_callback_args_t *arg){
     static int prev_enc[2];
     static int counter = 0;
 
-    if(flag_L){
+    if(enc[0].moved){
         if(enc[0].rotate_forward){
             enc[0].count ++;
         }else{
             enc[0].count --;
         }
-        flag_L = false;
+        enc[0].moved = false;
     }
     
-    if(flag_R){
+    if(enc[1].moved){
         if(enc[1].rotate_forward){
             enc[1].count ++;
         }else{
             enc[1].count --;
         }
-        flag_R = false;
+        enc[1].moved = false;
     }
     counter++;
     if(counter == 2){
@@ -174,7 +173,6 @@ void timer_callback(timer_callback_args_t *arg){
             robot.y += enc_diff[0];
         }else{
             radius = ROBOT_WIDTH * (enc_diff[0] + enc_diff[1]) / (enc_diff[0] - enc_diff[1]);
-            rad1 = radius;
             global_theta = robot.headding * 2 * PI / 360;
             local_x = radius * (1 - cos(local_theta)) / 4 ; //何故か４で割らねばならない
             local_y = radius * sin(local_theta) / 4 ; //何故か４で割らねばならない
