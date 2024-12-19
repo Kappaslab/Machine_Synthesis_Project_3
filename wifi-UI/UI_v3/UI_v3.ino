@@ -37,7 +37,7 @@ void setup() {
 
     // Wi-Fi接続
     Serial.begin(115200);
-    WiFi.config(IPAddress(192, 48, 56, 1));
+    WiFi.config(IPAddress(192, 48, 56, 2));
     WiFi.beginAP(ssid, password);
 
     while (WiFi.status() != WL_AP_LISTENING) {
