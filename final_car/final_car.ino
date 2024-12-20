@@ -122,8 +122,8 @@ void setup() {
     time_interrupt.start();
 
     /*PWMスタート*/
-    MotorL.begin(4000, 0.f);
-    MotorR.begin(4000, 0.f);
+    MotorL.begin(5000, 0.f);
+    MotorR.begin(5000, 0.f);
     if(!Servo)Serial.println("OK");
     Servo.begin(50, 0.f);
     if(Servo)Serial.println("OK1");
