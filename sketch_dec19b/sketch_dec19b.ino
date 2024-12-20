@@ -39,9 +39,11 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   int i;
+  int power;
 
-    for(i = 20; i < 50 ; i++){
-      Motor1.pulse_perc(i);
+    for(i = 15; i < 30 ; i++){
+      power = -0.003 * i * i * i + 0.1969 * i * i - 2.7523 * i + 34.852;
+      Motor1.pulse_perc(power);
       Serial.println(i);
       delay(1000);
     }
