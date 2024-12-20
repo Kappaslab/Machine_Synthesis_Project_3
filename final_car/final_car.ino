@@ -124,12 +124,13 @@ void setup() {
     /*PWMスタート*/
     MotorL.begin(5000, 0.f);
     MotorR.begin(5000, 0.f);
-    if(!Servo)Serial.println("OK");
     Servo.begin(50, 0.f);
-    if(Servo)Serial.println("OK1");
+    Servo.suspend();
 }
 
 void loop(){
+    WiFiClient client = server.available();
+
 
 }
 
@@ -152,7 +153,6 @@ void timer_callback(timer_callback_args_t *arg){
         }
         enc[0].moved = false;
     }
-    
     if(enc[1].moved){
         if(enc[1].rotate_forward){
             enc[1].count ++;
@@ -161,4 +161,9 @@ void timer_callback(timer_callback_args_t *arg){
         }
         enc[1].moved = false;
     }
+}
+
+void my_servo(int angle){
+    Servo.resume();
+    Servo.pulseWidth_us(map(angle,-90, 90,500, 2400));
 }
