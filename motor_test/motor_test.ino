@@ -66,7 +66,7 @@ void setup() {
     digitalWrite(Motor_R_B_PIN, LOW);
 
     Serial.begin(9600);
-    Motor1.begin(4000, 0.f);
+    Motor1.begin(5000, 0.f);
 }
 
 void loop() {
@@ -82,32 +82,33 @@ void loop() {
     float speed[6];
     float ave_speed = 0;
 
-
-    current_time = millis();
-    current_count = enc[0].count;
-    diff_time = current_time - start_time;
-    diff_count = current_count - prev_count;
+    if(i =< 50){
+        current_time = millis();
+        current_count = enc[0].count;
+        diff_time = current_time - start_time;
+        diff_count = current_count - prev_count;
     
-    if(diff_time > 2000){
-        speed[counter] = diff_count * 1000 / diff_time;
-        counter++;
-        start_time = current_time;
-        prev_count = current_count;
+        if(diff_time > 2000){
+            speed[counter] = diff_count * 1000 / diff_time;
+            counter++;
+            start_time = current_time;
+            prev_count = current_count;
+        }
+
+        if(counter == 5){
+            ave_speed = (speed[0] + speed[1] + speed[2] + speed[3] + speed[4]) / 5.f;
+            Serial.print(i);
+            Serial.print(":");
+            Serial.println(ave_speed);
+            i++;
+            counter = 0;
+            Motor1.pulse_perc(i);
+            delay(2000);
+            start_time = millis();
+            prev_count = enc[0].count;
+        }
     }
 
-    if(counter == 5){
-        ave_speed = (speed[0] + speed[1] + speed[2] + speed[3] + speed[4]) / 5.f;
-        Serial.print(i);
-        Serial.print(":");
-        Serial.println(ave_speed);
-        if(i == 50) return;
-        i++;
-        counter = 0;
-        Motor1.pulse_perc(i);
-        delay(2000);
-        start_time = millis();
-        prev_count = enc[0].count;
-    }
 }
 
 void enc_counter_L(){

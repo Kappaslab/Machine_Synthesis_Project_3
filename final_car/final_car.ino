@@ -1,5 +1,6 @@
 #include <WiFi.h>
-#include "Fsp\Timer.h"
+#include "FspTimer.h"
+#include"pwm.h"
 
 /*pin assign*/
 #define ENC_L_PIN 2
@@ -11,6 +12,8 @@
 #define Motor_R_A_PIN 11
 #define Motor_R_B_PIN 12
 #define Motor_R_PWM_PIN 10
+
+#define Servo_PWM_PIN 6
 
 #define TEST_PIN 13
 
@@ -29,9 +32,12 @@ const char* password = "123456789";
 byte IP[] = { 192, 48, 56, 1 };
 int PORT = 80;
 int status = WL_IDLE_STATUS;
-WiFiServer server(PORT);
 
+WiFiServer server(PORT);
 FspTimer time_interrupt;
+PwmOut MotorL(Motor_L_PWM_PIN);
+PwmOut MotorR(Motor_R_PWM_PIN);
+PwmOut Servo(Servo_PWM_PIN);
 
 /*value*/
 typedef struct enc_str{
@@ -54,8 +60,9 @@ volatile ROBOT_STATE robot;
 
 void setup() {
     /*IO設定*/
-    pinMode(ENC_L_PIN, INPUT_PULLUP);
-    pinMode(ENC_R_PIN, INPUT_PULLUP);
+    /*初期化*/
+    digitalWrite(ENC_L_PIN, LOW);
+    digitalWrite(ENC_R_PIN, LOW);
 
     digitalWrite(Motor_L_A_PIN, LOW);
     digitalWrite(Motor_L_B_PIN, LOW);
@@ -64,7 +71,13 @@ void setup() {
     digitalWrite(Motor_R_B_PIN, LOW);
     digitalWrite(Motor_R_PWM_PIN, LOW);
 
+    digitalWrite(Servo_PWM_PIN, LOW);
+
     digitalWrite(TEST_PIN, LOW);
+
+    /*ピンモード*/
+    pinMode(ENC_L_PIN, INPUT_PULLUP);
+    pinMode(ENC_R_PIN, INPUT_PULLUP);
 
     pinMode(Motor_L_A_PIN, OUTPUT);
     pinMode(Motor_L_B_PIN, OUTPUT);
@@ -73,7 +86,23 @@ void setup() {
     pinMode(Motor_R_B_PIN, OUTPUT);
     pinMode(Motor_R_PWM_PIN, OUTPUT);
 
+    pinMode(Servo_PWM_PIN, OUTPUT);
+
     pinMode(TEST_PIN, OUTPUT);
+
+    /*シリアル通信*/
+    Serial.begin(9600);
+
+    /*Wi-Fi通信*/
+    WiFi.config(IPAddress(IP));
+    WiFi.beginAP(ssid, password);
+    while (WiFi.status() != WL_AP_LISTENING) {
+        delay(500);
+        Serial.println("Starting AP...");
+    }
+    Serial.println("AP started");
+    Serial.println(WiFi.softAPIP());
+    server.begin();
 
     /*エンコーダ割り込み設定*/
     attachInterrupt(digitalPinToInterrupt(ENC_L_PIN), enc_counter_L, CHANGE);
@@ -84,6 +113,7 @@ void setup() {
     uint8_t type;
     int8_t ch = FspTimer::get_available_timer(type);
     if(ch < 0){
+        Serial.println("Can't get availabletimer...");
         return;
     }
     time_interrupt.begin(TIMER_MODE_PERIODIC, type, ch, INTERRUPT_FREQ, 50.0f,timer_callback, nullptr);
@@ -91,21 +121,12 @@ void setup() {
     time_interrupt.open();
     time_interrupt.start();
 
-    /*通信設定*/
-    /*シリアル通信*/
-    Serial.begin(9600);
-    /*Wi-Fi通信*/
-    WiFi.config(IPAddress(IP));
-    WiFi.beginAP(ssid, password);
-
-    while (WiFi.status() != WL_AP_LISTENING) {
-        delay(500);
-        Serial.println("Starting AP...");
-    }
-    Serial.println("AP started");
-    Serial.println(WiFi.softAPIP());
-
-    server.begin();
+    /*PWMスタート*/
+    MotorL.begin(4000, 0.f);
+    MotorR.begin(4000, 0.f);
+    if(!Servo)Serial.println("OK");
+    Servo.begin(50, 0.f);
+    if(Servo)Serial.println("OK1");
 }
 
 void loop(){
@@ -114,22 +135,15 @@ void loop(){
 
 void enc_counter_L(){
     enc[0].moved = true;
+    enc[0].count ++;
 }
 
 void enc_counter_R(){
     enc[1].moved = true;
+    enc[1].count ++;
 }
 
 void timer_callback(timer_callback_args_t *arg){
-    float enc_diff[2];
-    float radius;
-    float global_theta;
-    float local_theta;
-    float local_x;
-    float local_y;
-    static int prev_enc[2];
-    static int counter = 0;
-
     if(enc[0].moved){
         if(enc[0].rotate_forward){
             enc[0].count ++;
@@ -146,45 +160,5 @@ void timer_callback(timer_callback_args_t *arg){
             enc[1].count --;
         }
         enc[1].moved = false;
-    }
-    counter++;
-    if(counter == 2){
-        digitalWrite(TEST_PIN, HIGH);
-        counter = 0;
-        /*前回からの移動量*/
-        enc_diff[0] = (enc[0].count - prev_enc[0]);
-        enc_diff[1] = (enc[1].count - prev_enc[1]);
-        /*エンコーダデータの更新*/
-        prev_enc[0] = enc[0].count;
-        prev_enc[1] = enc[1].count;
-
-        /*割り込みを許可*/
-        interrupts();
-
-        /*エンコーダのカウントを移動距離[mm]に変換*/
-        enc_diff[0] = TIER_DIAMETER * PI * enc_diff[0] / ENC_SLIT;
-        enc_diff[1] = TIER_DIAMETER * PI * enc_diff[1] / ENC_SLIT;
-
-        /*移動距離を位置と方向に変換*/
-        local_theta = (enc_diff[0] - enc_diff[1])/ ROBOT_WIDTH;
-        if(local_theta > 360) local_theta -= 360;
-    
-        if(enc_diff[0] == enc_diff[1]){
-            robot.y += enc_diff[0];
-        }else{
-            radius = ROBOT_WIDTH * (enc_diff[0] + enc_diff[1]) / (enc_diff[0] - enc_diff[1]);
-            global_theta = robot.headding * 2 * PI / 360;
-            local_x = radius * (1 - cos(local_theta)) / 4 ; //何故か４で割らねばならない
-            local_y = radius * sin(local_theta) / 4 ; //何故か４で割らねばならない
-            robot.x += local_y * sin(global_theta) + local_x * cos(global_theta);
-            robot.y += local_y * cos(global_theta) - local_x * sin(global_theta);
-        }
-        robot.headding += 360 * local_theta / (2 * PI * 1.25); //何故か1.25で割らねばならない
-        if(robot.headding > 360) robot.headding -= 360;
-
-        /*速度情報の更新*/
-        robot.v_L = enc_diff[0] * 10;
-        robot.v_R = enc_diff[1] * 10;
-        robot.v = (robot.v_L + robot.v_R) * 10 / 2;
     }
 }
