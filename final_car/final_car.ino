@@ -44,6 +44,7 @@ typedef struct enc_str{
     int count = 0;
     bool moved = false;
     bool rotate_forward = true;
+    unsigned long time = 0;
 } ENCODER;
 
 typedef struct rbt_str{
@@ -136,12 +137,10 @@ void loop(){
 
 void enc_counter_L(){
     enc[0].moved = true;
-    enc[0].count ++;
 }
 
 void enc_counter_R(){
     enc[1].moved = true;
-    enc[1].count ++;
 }
 
 void timer_callback(timer_callback_args_t *arg){
@@ -151,6 +150,7 @@ void timer_callback(timer_callback_args_t *arg){
         }else{
             enc[0].count --;
         }
+        enc[0].timer = micros();
         enc[0].moved = false;
     }
     if(enc[1].moved){
@@ -159,6 +159,7 @@ void timer_callback(timer_callback_args_t *arg){
         }else{
             enc[1].count --;
         }
+        enc[0].timer = micros();
         enc[1].moved = false;
     }
 }
