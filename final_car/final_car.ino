@@ -22,7 +22,7 @@
 #define TIER_RADIUS 18.5 //[mm]
 #define ROBOT_WIDTH 104 //[mm]
 #define ENC_SLIT 40
-#define INTERRUPT_FREQ 200//[Hz]
+#define INTERRUPT_FREQ 500//[Hz]
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 100//[mm/s]
 #define WMA_NUM 3
@@ -130,6 +130,7 @@ void enc_counter_R(){
 }
 
 void timer_callback(timer_callback_args_t *arg){
+    digitalWrite(TEST_PIN, HIGH);
     static int count = 0;
     float t = 0.1;
     float v_L = 0.f;
@@ -139,7 +140,6 @@ void timer_callback(timer_callback_args_t *arg){
     float d_theta = 0.f;
     encorder_counter(0);
     encorder_counter(1);
-
     if(count == 0){
         /*カウンターリセット*/
         count = INTERRUPT_FREQ * t;
@@ -162,14 +162,16 @@ void timer_callback(timer_callback_args_t *arg){
             robot.y += y_local * cos(robot.headding) - x_local * sin(robot.headding);
             robot.headding += d_theta;
         }
+    
     }
     count--;
+    digitalWrite(TEST_PIN, LOW);
 }
 
 /*サーボ*/
 void my_servo(int angle){
     Servo.resume();
-    Servo.pulseWidth_us(map(angle,-90, 90,500, 2400));
+    Servo.pulseWidth_us(map(angle,-90, 90,553, 2347));
 }
 
 /*エンコーダのカウントとパルスの間隔からの角速度の導出*/
