@@ -24,7 +24,7 @@
 #define ENC_SLIT 40
 #define INTERRUPT_FREQ 500//[Hz]
 #define DIRECTION_MAX 1
-#define VELOCITY_MAX 100//[mm/s]
+#define VELOCITY_MAX 55//[mm/s]
 #define WMA_NUM 3
 
 /* Wi-Fi 設定 */
@@ -231,4 +231,68 @@ int time_interrupt_setup(){
     time_interrupt.open();
     time_interrupt.start();
     return 0;
+}
+
+void move(float velocity,float direction){
+    float L_velocity;
+    float R_velocity;
+    float ideal_rho;
+    float L_omega;
+    float R_omega;
+    int L_output;
+    int R_output;
+
+    /*速度の最大限を決定*/
+    if(velocity > VELOCITY_MAX) velocity = VELOCITY_MAX;
+    if(velocity < -VELOCITY_MAX) velocity = -VELOCITY_MAX;
+
+    /*曲率の最大限を決定*/
+    if(direction > DIRECTION_MAX) direction = DIRECTION_MAX;
+    if(direction < -DIRECTION_MAX) direction = -DIRECTION_MAX;
+
+    /*車輪の移動速度に変換*/
+    L_velocity = velocity;
+    R_velocity = velocity;
+    if(direction >= 0){
+        R_velocity = R_velocity * (1 - 2 * direction);
+    }else{
+        L_velocity = L_velocity * (1 + 2 * direction);
+    }
+    
+    /*フィードバックのための下ごしらえ*/
+    ideal_rho = 2 * (L_velocity - R_velocity) / (ROBOT_WIDTH * (L_velocity + R_velocity));
+    L_omega = L_velocity / TIER_RADIUS;
+    R_omega = R_velocity / TIER_RADIUS;
+
+    /*モータ回転方向の設定*/
+    noInterrupts();
+    enc[0].rotate_forward = L_omega >= 0;
+    enc[1].rotate_forward = R_omega >= 0;
+    interrupts();
+
+    /*いいかんじに速度を出力に変換*/
+    L_output = map(L_velocity, 0, VELOCITY_MAX, 0 , 128);//仮
+    R_output = map(R_velocity, 0, VELOCITY_MAX, 0 , 128);//仮
+
+    /*最大値の制限*/
+    L_output = min(L_output, 128);
+    R_output = min(R_output, 128);
+
+    /*出力*/
+    if(L_output == 0){
+        digitalWrite(Motor_L_A_PIN, HIGH);
+        digitalWrite(Motor_L_B_PIN, HIGH);
+    }else{
+        digitalWrite(Motor_L_A_PIN, enc[0].rotate_forward);
+        digitalWrite(Motor_L_B_PIN, !enc[0].rotate_forward);
+    }
+    if(R_output == 0){
+        digitalWrite(Motor_R_A_PIN, HIGH);
+        digitalWrite(Motor_R_B_PIN, HIGH);
+    }else{
+        digitalWrite(Motor_R_A_PIN, enc[1].rotate_forward);
+        digitalWrite(Motor_R_B_PIN, !enc[1].rotate_forward);
+    }
+    MotorL.pulse_perc(L_output);
+    MotorR.pulse_perc(R_output);
 }
