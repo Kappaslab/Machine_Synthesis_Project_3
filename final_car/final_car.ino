@@ -60,8 +60,22 @@ typedef struct rbt_str{
     float v = 0.f;
 } ROBOT_STATE;
 
+typedef struct {
+    float target;
+    float target_diff;
+    long prev_enc;
+    float integral;
+    float differential;
+    float output;
+    float kp;
+    float ki;
+    float kd;
+    float max;
+} PID_data;
+
 volatile ENCODER enc[2];
 volatile ROBOT_STATE robot;
+volatile PID_data speed_data[2];
 
 void setup() {
     /*IO設定*/
@@ -233,7 +247,7 @@ int time_interrupt_setup(){
     return 0;
 }
 
-void move(float velocity,float direction){
+void move_data(float velocity,float direction){
     float L_velocity;
     float R_velocity;
     float ideal_rho;
@@ -271,8 +285,15 @@ void move(float velocity,float direction){
     interrupts();
 
     /*いいかんじに速度を出力に変換*/
-    L_output = map(L_velocity, 0, VELOCITY_MAX, 0 , 128);//仮
-    R_output = map(R_velocity, 0, VELOCITY_MAX, 0 , 128);//仮
+    L_output = map(L_velocity, -VELOCITY_MAX, VELOCITY_MAX, -128 , 128);//仮
+    R_output = map(R_velocity, -VELOCITY_MAX, VELOCITY_MAX, -128 , 128);//仮
+}
+
+motor_output(int L_output, int R_output){
+
+    /*絶対値を取る*/
+    L_output = abs(L_output);
+    R_output = abs(R_output);
 
     /*最大値の制限*/
     L_output = min(L_output, 128);
@@ -280,6 +301,7 @@ void move(float velocity,float direction){
 
     /*出力*/
     if(L_output == 0){
+        /*ブレーキ*/
         digitalWrite(Motor_L_A_PIN, HIGH);
         digitalWrite(Motor_L_B_PIN, HIGH);
     }else{
@@ -287,6 +309,7 @@ void move(float velocity,float direction){
         digitalWrite(Motor_L_B_PIN, !enc[0].rotate_forward);
     }
     if(R_output == 0){
+        /*ブレーキ*/
         digitalWrite(Motor_R_A_PIN, HIGH);
         digitalWrite(Motor_R_B_PIN, HIGH);
     }else{
