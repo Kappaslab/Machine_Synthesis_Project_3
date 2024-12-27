@@ -289,7 +289,7 @@ void move_data(float velocity,float direction){
     R_output = map(R_velocity, -VELOCITY_MAX, VELOCITY_MAX, -128 , 128);//仮
 }
 
-motor_output(int L_output, int R_output){
+void motor_output(int L_output ,int R_output){
 
     /*絶対値を取る*/
     L_output = abs(L_output);
