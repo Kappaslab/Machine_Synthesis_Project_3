@@ -25,6 +25,7 @@
 #define INTERRUPT_FREQ 500//[Hz]
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 55//[mm/s]
+#define POWER_MAX 50//[mm/s]
 #define WMA_NUM 3
 
 /* Wi-Fi 設定 */
@@ -63,7 +64,6 @@ typedef struct rbt_str{
 typedef struct {
     float target;
     float target_diff;
-    long prev_enc;
     float integral;
     float differential;
     float output;
@@ -75,7 +75,7 @@ typedef struct {
 
 volatile ENCODER enc[2];
 volatile ROBOT_STATE robot;
-volatile PID_data speed_data[2];
+volatile PID_data speed_data[2], angle_data;
 
 void setup() {
     /*IO設定*/
@@ -158,13 +158,14 @@ void timer_callback(timer_callback_args_t *arg){
         /*カウンターリセット*/
         count = INTERRUPT_FREQ * t;
 
+        /*状態推定*/
         /*速度算出*/
         v_L = enc[0].WMA_omega * TIER_RADIUS;
         v_R = enc[1].WMA_omega * TIER_RADIUS;
         robot.v = (v_L + v_R) / 2;
         /*ロボットの旋回曲率の算出*/
         robot.rho = 2 * (v_L - v_R) / (ROBOT_WIDTH * (v_L + v_R));
-
+        /*自己位置推定*/
         if(v_L = v_R){
             robot.y += v_L * t;
         }else{
@@ -176,7 +177,19 @@ void timer_callback(timer_callback_args_t *arg){
             robot.y += y_local * cos(robot.headding) - x_local * sin(robot.headding);
             robot.headding += d_theta;
         }
-    
+
+        /*各部PID*/
+        angle_pid();
+        if(angle_data.output >= 0){
+            speed_data[1].target -= angle_data.output;
+        }else{
+            speed_data[0].target -= angle_data.output;
+        }
+        speed_pid(0);
+        speed_pid(1);
+
+        /*モータ出力*/
+        motor_output(speed_data[0].output, speed_data[0].output);
     }
     count--;
     digitalWrite(TEST_PIN, LOW);
@@ -272,8 +285,7 @@ void move_data(float velocity,float direction){
     }else{
         L_velocity = L_velocity * (1 + 2 * direction);
     }
-    
-    /*フィードバックのための下ごしらえ*/
+        /*フィードバックのための下ごしらえ*/
     ideal_rho = 2 * (L_velocity - R_velocity) / (ROBOT_WIDTH * (L_velocity + R_velocity));
     L_omega = L_velocity / TIER_RADIUS;
     R_omega = R_velocity / TIER_RADIUS;
@@ -282,11 +294,11 @@ void move_data(float velocity,float direction){
     noInterrupts();
     enc[0].rotate_forward = L_omega >= 0;
     enc[1].rotate_forward = R_omega >= 0;
-    interrupts();
 
-    /*いいかんじに速度を出力に変換*/
-    L_output = map(L_velocity, -VELOCITY_MAX, VELOCITY_MAX, -128 , 128);//仮
-    R_output = map(R_velocity, -VELOCITY_MAX, VELOCITY_MAX, -128 , 128);//仮
+    angle_data.target = ideal_rho;
+    speed_data[0].target = L_omega;
+    speed_data[1].target = R_omega;
+    interrupts();
 }
 
 void motor_output(int L_output ,int R_output){
@@ -296,8 +308,8 @@ void motor_output(int L_output ,int R_output){
     R_output = abs(R_output);
 
     /*最大値の制限*/
-    L_output = min(L_output, 128);
-    R_output = min(R_output, 128);
+    L_output = min(L_output, POWER_MAX);
+    R_output = min(R_output, POWER_MAX);
 
     /*出力*/
     if(L_output == 0){
@@ -318,4 +330,12 @@ void motor_output(int L_output ,int R_output){
     }
     MotorL.pulse_perc(L_output);
     MotorR.pulse_perc(R_output);
+}
+
+void angle_pid(){
+
+}
+
+void speed_pid(int i){
+
 }
