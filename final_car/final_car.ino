@@ -131,8 +131,35 @@ void setup() {
 
 void loop(){
     WiFiClient client = server.available();
+    static int i = 0;
+    if(i == 0){
+        my_servo(-90);
+        delay(10000);
+    }
+    for(i = -90; i < 0; i += 10){
+        my_servo(i);
+        Serial.println(i);
+        delay(200);
+    }
+    for(i = 0; i < 30; i += 10){
+        my_servo(i);
+        Serial.println(i);
+        delay(200);
+    }
+    for(i = 30; i > -90; i -= 10){
+        my_servo(i);
+        Serial.println(i);
+        delay(200);
+    }
 
-    Serial.println(enc[0].WMA_omega);
+    // Serial.print(speed_data[0].target);
+    // Serial.print(",");
+    // Serial.print(speed_data[1].target);
+    // Serial.print(",");
+    // Serial.print(speed_data[0].output);
+    // Serial.print(",");
+    // Serial.println(speed_data[1].output);
+    // if(millis() > 10000) move_data(55, 0);
 }
 
 void enc_counter_L(){
@@ -285,23 +312,23 @@ void move_data(float velocity,float direction){
     }else{
         L_velocity = L_velocity * (1 + 2 * direction);
     }
-        /*フィードバックのための下ごしらえ*/
+    /*フィードバックのための下ごしらえ*/
     ideal_rho = 2 * (L_velocity - R_velocity) / (ROBOT_WIDTH * (L_velocity + R_velocity));
     L_omega = L_velocity / TIER_RADIUS;
     R_omega = R_velocity / TIER_RADIUS;
 
-    /*モータ回転方向の設定*/
     noInterrupts();
+    /*モータ回転方向の設定*/
     enc[0].rotate_forward = L_omega >= 0;
     enc[1].rotate_forward = R_omega >= 0;
-
+    /*PIDの目標値に設定*/
     angle_data.target = ideal_rho;
     speed_data[0].target = L_omega;
     speed_data[1].target = R_omega;
     interrupts();
 }
 
-void motor_output(int L_output ,int R_output){
+void motor_output(float L_output ,float R_output){
 
     /*絶対値を取る*/
     L_output = abs(L_output);
@@ -333,9 +360,9 @@ void motor_output(int L_output ,int R_output){
 }
 
 void angle_pid(){
-
+    angle_data.output = 0;
 }
 
 void speed_pid(int i){
-
+    speed_data[i].output = (speed_data[i].target + PI) * 100 / (2 * PI) -50;//おためし
 }
