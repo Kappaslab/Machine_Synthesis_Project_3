@@ -26,7 +26,7 @@
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 55//[mm/s]
 #define POWER_MAX 50
-#define WMA_NUM 3
+#define WMA_NUM 5
 
 #define MOTOR_L_KP 5
 #define MOTOR_L_KI 3
@@ -145,10 +145,12 @@ void setup() {
     speed_data[0].kp = MOTOR_L_KP;
     speed_data[0].ki = MOTOR_L_KI;
     speed_data[0].kd = MOTOR_L_KD;
+    speed_data[0].max = MOTOR_L_MAX;
 
     speed_data[1].kp = MOTOR_R_KP;
     speed_data[1].ki = MOTOR_R_KI;
     speed_data[1].kd = MOTOR_R_KD;
+    speed_data[1].max = MOTOR_R_MAX;
 
     /*シリアル通信*/
     Serial.begin(9600);
@@ -206,9 +208,28 @@ void loop(){
         }
     } else {
         //Serial.println("No device");
-        Serial.print(speed_data[0].target);
+        // Serial.print(speed_data[0].target);
+        // Serial.print(",");
+        // Serial.print(speed_data[1].target);
+        // Serial.print(",");
+        // Serial.print(enc[0].WMA_omega);
+        // Serial.print(",");
+        // Serial.print(enc[1].WMA_omega);
+        // Serial.print(",");
+        // Serial.print(speed_data[0].output);
+        // Serial.print(",");
+        // Serial.println(speed_data[1].output);
+        Serial.print(enc[0].omega[0]);
         Serial.print(",");
-        Serial.print(speed_data[1].target);
+        Serial.print(enc[0].omega[1]);
+        Serial.print(",");
+        Serial.print(enc[0].omega[2]);
+        Serial.print(",");
+        Serial.print(enc[0].omega[3]);
+        Serial.print(",");
+        Serial.print(enc[0].omega[4]);
+        Serial.print(",");
+        Serial.print(enc[0].WMA_omega);
         Serial.print(",");
         Serial.print(speed_data[0].output);
         Serial.print(",");
@@ -236,9 +257,9 @@ void enc_counter_R(){
 }
 
 void timer_callback(timer_callback_args_t *arg){
-    digitalWrite(TEST_PIN, HIGH);
+    //digitalWrite(TEST_PIN, HIGH);
     static int count = 0;
-    static int prev_enc_counter[2] = {0, 0};
+    static int prev_enc_counter[2];
     float t = 0.1;
     float v_L = 0.f;
     float v_R = 0.f;
@@ -290,10 +311,10 @@ void timer_callback(timer_callback_args_t *arg){
         speed_pid(1);
 
         /*モータ出力*/
-        motor_output(speed_data[0].output, speed_data[0].output);
+        motor_output(speed_data[0].output, speed_data[1].output);
     }
     count--;
-    digitalWrite(TEST_PIN, LOW);
+    //digitalWrite(TEST_PIN, LOW);
 }
 
 /*サーボ*/
@@ -336,12 +357,12 @@ void enc_zero(int enc_num, int prev_count){
     int i;
 
     if(enc[enc_num].count == prev_count){
-            for(i = WMA_NUM - 1; i > 0; i--){
-                enc[enc_num].omega[i] = enc[enc_num].omega[i - 1];
-            }
-            enc[enc_num].omega[0] = 0;
+        for(i = WMA_NUM - 1; i > 0; i--){
+            enc[enc_num].omega[i] = enc[enc_num].omega[i - 1];
+        }
+        enc[enc_num].omega[0] = 0;
+        calc_wma(enc_num);
     }
-    calc_wma(enc_num);
 }
 
 /*Wifi通信のセットアップ*/
