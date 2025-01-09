@@ -25,8 +25,23 @@
 #define INTERRUPT_FREQ 500//[Hz]
 #define DIRECTION_MAX 1
 #define VELOCITY_MAX 55//[mm/s]
-#define POWER_MAX 50//[mm/s]
+#define POWER_MAX 50
 #define WMA_NUM 3
+
+#define MOTOR_L_KP 5
+#define MOTOR_L_KI 3
+#define MOTOR_L_KD 0
+#define MOTOR_L_MAX 50
+
+#define MOTOR_R_KP 5
+#define MOTOR_R_KI 3
+#define MOTOR_R_KD 0
+#define MOTOR_R_MAX 50
+
+#define ANGLE_KP 5
+#define ANGLE_KI 3
+#define ANGLE_KD 0
+#define ANGLE_MAX 15
 
 /* Wi-Fi 設定 */
 const char* ssid = "cafe_03";
@@ -73,9 +88,26 @@ typedef struct {
     float max;
 } PID_data;
 
+enum{
+    Section1,//1つ目の目標に移動して把持
+    Section2,//1つ目の目標をゴールまで運ぶ
+    Section3,//スタート位置まで戻る
+    Section4,//2つ目の目標に移動して把持
+    Section5,//2つ目の目標をゴールまで運ぶ
+    Section6,//スタート位置まで戻る
+    Section7,//3つ目の目標に移動して把持
+    Section8,//4つ目の目標をゴールまで運ぶ
+    Section9,//スタート位置まで戻る
+    Section10,//4つ目の目標に移動して把持
+    Section11,//4つ目の目標をゴールまで運ぶ
+    Section12,//スタート位置まで戻る
+};
+
 volatile ENCODER enc[2];
 volatile ROBOT_STATE robot;
 volatile PID_data speed_data[2], angle_data;
+char message[30];
+char c = '.';
 
 void setup() {
     /*IO設定*/
@@ -109,6 +141,15 @@ void setup() {
 
     pinMode(TEST_PIN, OUTPUT);
 
+    /*PIDゲイン設定*/
+    speed_data[0].kp = MOTOR_L_KP;
+    speed_data[0].ki = MOTOR_L_KI;
+    speed_data[0].kd = MOTOR_L_KD;
+
+    speed_data[1].kp = MOTOR_R_KP;
+    speed_data[1].ki = MOTOR_R_KI;
+    speed_data[1].kd = MOTOR_R_KD;
+
     /*シリアル通信*/
     Serial.begin(9600);
 
@@ -130,26 +171,50 @@ void setup() {
 }
 
 void loop(){
-    WiFiClient client = server.available();
     static int i = 0;
-    if(i == 0){
-        my_servo(-90);
-        delay(10000);
-    }
-    for(i = -90; i < 0; i += 10){
-        my_servo(i);
-        Serial.println(i);
-        delay(200);
-    }
-    for(i = 0; i < 30; i += 10){
-        my_servo(i);
-        Serial.println(i);
-        delay(200);
-    }
-    for(i = 30; i > -90; i -= 10){
-        my_servo(i);
-        Serial.println(i);
-        delay(200);
+    static int section = 0;
+    static bool grab_state = "false";
+
+
+    // アクセスポイントに他のデバイスがつながるのを待つ
+    if (WiFi.status() == WL_AP_CONNECTED) {
+        //接続されているクライアントを確認
+        WiFiClient client = server.available();
+        if (!client) {
+            Serial.println("NO CLIENT");
+            return;
+        }
+        if (!client.connected()) {
+            client.stop();  //接続が切れてたらクライアントを終了
+            return;
+        }
+        if (client.available() <= 0) {
+            return;  // データが来なかったらなにもしない
+        }
+
+        c = client.read();
+        // 以下はコマンドの解釈．'U'のときのみ，A0ピンの値をPCに送信する．
+        // それ以外のときは，コマンドの文字をそのままLEDに表示する．
+        switch (c) {
+            case 'U':  //センサ値を符号なし2バイトで送信
+                client.println("50"); 
+                break;
+            default:
+                sprintf(message, "%c  ", c);
+                Serial.println("message");  //受け取った文字をLEDに表示
+                break;
+        }
+    } else {
+        //Serial.println("No device");
+        Serial.print(speed_data[0].target);
+        Serial.print(",");
+        Serial.print(speed_data[1].target);
+        Serial.print(",");
+        Serial.print(speed_data[0].output);
+        Serial.print(",");
+        Serial.println(speed_data[1].output);
+        if(millis() > 10000) move_data(55, 0);
+        //section = local_logic(section, grab_state);
     }
 
     // Serial.print(speed_data[0].target);
@@ -217,9 +282,9 @@ void timer_callback(timer_callback_args_t *arg){
         /*各部PID*/
         angle_pid();
         if(angle_data.output >= 0){
-            speed_data[1].target -= angle_data.output;
+            speed_data[1].target *= (1 - angle_data.output);
         }else{
-            speed_data[0].target -= angle_data.output;
+            speed_data[0].target *= (1 - angle_data.output);
         }
         speed_pid(0);
         speed_pid(1);
@@ -383,12 +448,20 @@ void motor_output(float L_output ,float R_output){
 
 /*直進補正*/
 void angle_pid(){
+    //angle_data.target_diff = angle_data.target - robot.rho;
     angle_data.output = 0;
 }
 
 /*速度制御*/
 void speed_pid(int i){
-    speed_data[i].output = (speed_data[i].target + PI) * 100 / (2 * PI) -50;//おためし
+    speed_data[i].integral = speed_data[i].target - enc[i].WMA_omega;
+    speed_data[i].target_diff = speed_data[i].integral / 0.1;
+    speed_data[i].differential = speed_data[i].target_diff / 0.1;
+    speed_data[i].output += speed_data[i].kp * speed_data[i].target_diff + speed_data[i].ki * speed_data[i].integral + speed_data[i].ki * speed_data[i].differential;
+    //speed_data[i].output = (speed_data[i].target + PI) * 100 / (2 * PI) -50;//おためし
+    if(speed_data[i].output > speed_data[i].max) speed_data[i].output = speed_data[i].max;
+    if(speed_data[i].output < -speed_data[i].max) speed_data[i].output = -speed_data[i].max;
+
 }
 
 /*加重平均速度の算出*/
@@ -397,4 +470,99 @@ void calc_wma(int enc_num){
     enc[enc_num].WMA_total += enc[enc_num].omega[0] - enc[enc_num].omega[WMA_NUM - 1];
     enc[enc_num].WMA_numerator += WMA_NUM * enc[enc_num].omega[0] - enc[enc_num].WMA_total;
     enc[enc_num].WMA_omega = 2 * enc[enc_num].WMA_numerator / (WMA_NUM * (WMA_NUM + 1));
+}
+
+void servo_test(){
+    static int i = 0;
+
+    if(i == 0){
+        my_servo(-90);
+        delay(10000);
+    }
+    for(i = -90; i < 0; i += 10){
+        my_servo(i);
+        Serial.println(i);
+        delay(200);
+    }
+    for(i = 0; i < 30; i += 10){
+        my_servo(i);
+        Serial.println(i);
+        delay(200);
+    }
+    for(i = 30; i > -90; i -= 10){
+        my_servo(i);
+        Serial.println(i);
+        delay(200);
+    }
+}
+
+int local_logic(int section, bool grab_state){
+    float target_position[2];
+
+    switch(section){
+        case Section1:
+            target_position[0] = 0;
+            target_position[1] = 0;
+            break;
+        case Section2:
+            target_position[0] = 0;
+            target_position[1] = 0;
+            break;
+        case Section4:
+            target_position[0] = 0;
+            target_position[1] = 0;
+            break;
+        case Section5:
+            target_position[0] = 0;
+            target_position[1] = 0;
+            break;
+        case Section7:
+            target_position[0] = 0;
+            target_position[1] = 0;
+            break;
+        case Section8:
+            target_position[0] = 0;
+            target_position[1] = 0;
+            break;
+        case Section10:
+            target_position[0] = 0;
+            target_position[1] = 0;
+            break;
+        case Section11:
+            target_position[0] = 0;
+            target_position[1] = 0;
+            break;
+        case Section3:
+        case Section6:
+        case Section9:
+        case Section12:
+            target_position[0] = 0.f;
+            target_position[1] = 0.f;
+            grab_state = true;
+            break;
+    }
+    if(local_move(target_position[0],target_position[1]) == 1){
+        if(grab(!grab_state) == !grab_state){
+            grab_state = !grab_state;
+            section++;
+        }
+    }
+    return section;
+}
+
+int local_move(float target_x, float target_y){
+
+    return 0;
+}
+
+bool grab(bool grab_state){
+    static unsigned long prev_time = 0;
+    if(millis() - prev_time < 1000) return !grab_state;
+    if(grab_state){
+        my_servo(-90);
+    }else{
+        my_servo(0);
+    }
+    prev_time = millis();
+    return grab_state;
 }
