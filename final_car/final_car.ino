@@ -173,17 +173,26 @@ void enc_counter_R(){
 void timer_callback(timer_callback_args_t *arg){
     digitalWrite(TEST_PIN, HIGH);
     static int count = 0;
+    static int prev_enc_counter[2] = {0, 0};
     float t = 0.1;
     float v_L = 0.f;
     float v_R = 0.f;
     float x_local = 0.f;
     float y_local = 0.f;
     float d_theta = 0.f;
+
     encorder_counter(0);
     encorder_counter(1);
+
     if(count == 0){
         /*カウンターリセット*/
         count = INTERRUPT_FREQ * t;
+
+        /*角速度が小さい時対策*/
+        enc_zero(0, prev_enc_counter[0]);
+        enc_zero(1, prev_enc_counter[1]);
+        prev_enc_counter[0] = enc[0].count;
+        prev_enc_counter[1] = enc[1].count;
 
         /*状態推定*/
         /*速度算出*/
@@ -251,12 +260,23 @@ void encorder_counter(int enc_num){
             enc[enc_num].omega[0] *= -1;
         }
         /*加重移動平均*/
-        enc[enc_num].WMA_total += enc[enc_num].omega[0] - enc[enc_num].omega[WMA_NUM - 1];
-        enc[enc_num].WMA_numerator += WMA_NUM * enc[enc_num].omega[0] - enc[enc_num].WMA_total;
-        enc[enc_num].WMA_omega = 2 * enc[enc_num].WMA_numerator / (WMA_NUM * (WMA_NUM + 1));
+        calc_wma(enc_num);
         /*フラグの初期化*/
         enc[enc_num].moved = false;
     }
+}
+
+/*回転数が小さいときは0で埋める*/
+void enc_zero(int enc_num, int prev_count){
+    int i;
+
+    if(enc[enc_num].count == prev_count){
+            for(i = WMA_NUM - 1; i > 0; i--){
+                enc[enc_num].omega[i] = enc[enc_num].omega[i - 1];
+            }
+            enc[enc_num].omega[0] = 0;
+    }
+    calc_wma(enc_num);
 }
 
 /*Wifi通信のセットアップ*/
@@ -365,4 +385,11 @@ void angle_pid(){
 
 void speed_pid(int i){
     speed_data[i].output = (speed_data[i].target + PI) * 100 / (2 * PI) -50;//おためし
+}
+
+void calc_wma(int enc_num){
+    /*加重移動平均*/
+    enc[enc_num].WMA_total += enc[enc_num].omega[0] - enc[enc_num].omega[WMA_NUM - 1];
+    enc[enc_num].WMA_numerator += WMA_NUM * enc[enc_num].omega[0] - enc[enc_num].WMA_total;
+    enc[enc_num].WMA_omega = 2 * enc[enc_num].WMA_numerator / (WMA_NUM * (WMA_NUM + 1));
 }
