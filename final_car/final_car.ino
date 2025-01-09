@@ -238,14 +238,6 @@ void loop(){
         //section = local_logic(section, grab_state);
     }
 
-    // Serial.print(speed_data[0].target);
-    // Serial.print(",");
-    // Serial.print(speed_data[1].target);
-    // Serial.print(",");
-    // Serial.print(speed_data[0].output);
-    // Serial.print(",");
-    // Serial.println(speed_data[1].output);
-    // if(millis() > 10000) move_data(55, 0);
 }
 
 void enc_counter_L(){
@@ -582,7 +574,7 @@ bool grab(bool grab_state){
     if(grab_state){
         my_servo(-90);
     }else{
-        my_servo(0);
+        my_servo(30);
     }
     prev_time = millis();
     return grab_state;
