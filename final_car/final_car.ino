@@ -307,6 +307,7 @@ int time_interrupt_setup(){
     return 0;
 }
 
+/*速さと向きから各モータの速度を生成*/
 void move_data(float velocity,float direction){
     float L_velocity;
     float R_velocity;
@@ -348,6 +349,7 @@ void move_data(float velocity,float direction){
     interrupts();
 }
 
+/*モータの回転方向の指定とPWM周波数の変更*/
 void motor_output(float L_output ,float R_output){
 
     /*絶対値を取る*/
@@ -379,14 +381,17 @@ void motor_output(float L_output ,float R_output){
     MotorR.pulse_perc(R_output);
 }
 
+/*直進補正*/
 void angle_pid(){
     angle_data.output = 0;
 }
 
+/*速度制御*/
 void speed_pid(int i){
     speed_data[i].output = (speed_data[i].target + PI) * 100 / (2 * PI) -50;//おためし
 }
 
+/*加重平均速度の算出*/
 void calc_wma(int enc_num){
     /*加重移動平均*/
     enc[enc_num].WMA_total += enc[enc_num].omega[0] - enc[enc_num].omega[WMA_NUM - 1];
