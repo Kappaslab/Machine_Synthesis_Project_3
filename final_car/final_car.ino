@@ -490,14 +490,9 @@ void servo_test(){
 
     if(i == 0){
         my_servo(-90);
-        delay(10000);
+        delay(5000);
     }
-    for(i = -90; i < 0; i += 10){
-        my_servo(i);
-        Serial.println(i);
-        delay(200);
-    }
-    for(i = 0; i < 30; i += 10){
+    for(i = -90; i < 30; i += 10){
         my_servo(i);
         Serial.println(i);
         delay(200);
