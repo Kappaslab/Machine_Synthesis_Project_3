@@ -1,30 +1,23 @@
-#include <WiFi.h>
-#include "FspTimer.h"
+#include <Servo.h>
 
-/* Wi-Fi 設定 */
-const char* ssid = "cafe_03";
-const char* password = "123456789";
-WiFiServer server(80);
-
-/* ピン設定 */
-#define ENC_L_PIN 2
-#define ENC_R_PIN 3
+/* ピンアサイン */
 #define Motor_L_A_PIN 7
 #define Motor_L_B_PIN 8
 #define Motor_L_PWM_PIN 9
 #define Motor_R_A_PIN 11
 #define Motor_R_B_PIN 12
 #define Motor_R_PWM_PIN 10
+#define Servo_PIN 6 // サーボモーターのピン
+#define LED 13
+#define Thermistor_PIN A0 // サーミスタのアナログピン
 
-#define VELOCITY_MAX 100
+/* 定数 */
+#define MOTOR_SPEED 255 // 最大速度
 
-volatile bool enc_flag_L = false;
-volatile bool enc_flag_R = false;
+Servo servoMotor;
+bool isGrasping = false; // つかむ状態を保持
 
 void setup() {
-    // ピンモードの設定
-    pinMode(ENC_L_PIN, INPUT_PULLUP);
-    pinMode(ENC_R_PIN, INPUT_PULLUP);
     pinMode(Motor_L_A_PIN, OUTPUT);
     pinMode(Motor_L_B_PIN, OUTPUT);
     pinMode(Motor_L_PWM_PIN, OUTPUT);
@@ -32,82 +25,107 @@ void setup() {
     pinMode(Motor_R_B_PIN, OUTPUT);
     pinMode(Motor_R_PWM_PIN, OUTPUT);
 
-    attachInterrupt(digitalPinToInterrupt(ENC_L_PIN), enc_counter_L, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(ENC_R_PIN), enc_counter_R, CHANGE);
+    Serial.begin(9600); // シリアル通信の初期化
 
-    // Wi-Fi接続
-    Serial.begin(115200);
-    WiFi.config(IPAddress(192, 48, 56, 2));
-    WiFi.beginAP(ssid, password);
-
-    while (WiFi.status() != WL_AP_LISTENING) {
-        delay(500);
-        Serial.println("Starting AP...");
-    }
-    Serial.println("AP started");
-    Serial.println(WiFi.softAPIP());
-
-    server.begin();
+    servoMotor.attach(Servo_PIN); // サーボモーターのピンを設定
+    servoMotor.write(0); // 初期状態は0度
 }
 
 void loop() {
-    WiFiClient client = server.available();
+    // サーミスタの値を読み取って送信
+    int thermistorValue = analogRead(Thermistor_PIN);
+    Serial.println("THERMISTOR " + String(thermistorValue));
 
-    if (client) {
-        String command = "";
-        while (client.connected()) {
-            if (client.available()) {
-                char c = client.read();
-                if (c == '\n') {
-                    parseCommand(command);
-                    command = "";
-                } else {
-                    command += c;
-                }
-            }
+    // 通常のコマンド処理
+    if (Serial.available()) {
+        String command = Serial.readStringUntil('\n');
+        command.trim();
+        Serial.println("Received command: " + command); // デバッグ用
+
+        if (command == "MOVE FORWARD") {
+            moveForward();
+        } else if (command == "MOVE BACKWARD") {
+            moveBackward();
+        } else if (command == "MOVE LEFT") {
+            moveLeft();
+        } else if (command == "MOVE RIGHT") {
+            moveRight();
+        } else if (command == "STOP") {
+            stopMotors();
+        } else if (command == "GRASP ON") {
+            graspOn();
+        } else if (command == "GRASP OFF") {
+            graspOff();
         }
-        client.stop();
     }
+    delay(100); // 過剰な送信を防ぐための短い待機
 }
 
-void parseCommand(String command) {
-    float velocity = 0;
-    float direction = 0;
 
-    if (command.startsWith("MOVE")) {
-        sscanf(command.c_str(), "MOVE %f %f", &velocity, &direction);
-        move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, velocity, direction);
-    } else if (command == "STOP") {
-        move(Motor_L_A_PIN, Motor_L_B_PIN, Motor_L_PWM_PIN, Motor_R_A_PIN, Motor_R_B_PIN, Motor_R_PWM_PIN, 0, 0);
-    }
+void moveForward() {
+    analogWrite(Motor_L_PWM_PIN, MOTOR_SPEED);
+    digitalWrite(Motor_L_A_PIN, HIGH);
+    digitalWrite(Motor_L_B_PIN, LOW);
+
+    analogWrite(Motor_R_PWM_PIN, MOTOR_SPEED);
+    digitalWrite(Motor_R_A_PIN, HIGH);
+    digitalWrite(Motor_R_B_PIN, LOW);
+    Serial.println("Moving forward");
 }
 
-void enc_counter_L() {
-    enc_flag_L = true;
+void moveBackward() {
+    analogWrite(Motor_L_PWM_PIN, MOTOR_SPEED);
+    digitalWrite(Motor_L_A_PIN, LOW);
+    digitalWrite(Motor_L_B_PIN, HIGH);
+
+    analogWrite(Motor_R_PWM_PIN, MOTOR_SPEED);
+    digitalWrite(Motor_R_A_PIN, LOW);
+    digitalWrite(Motor_R_B_PIN, HIGH);
+    Serial.println("Moving backward");
 }
 
-void enc_counter_R() {
-    enc_flag_R = true;
+void moveLeft() {
+    analogWrite(Motor_R_PWM_PIN, MOTOR_SPEED);
+    digitalWrite(Motor_R_A_PIN, HIGH);
+    digitalWrite(Motor_R_B_PIN, LOW);
+
+    analogWrite(Motor_L_PWM_PIN, 0);
+    digitalWrite(Motor_L_A_PIN, LOW);
+    digitalWrite(Motor_L_B_PIN, LOW);
+    Serial.println("Turning left");
 }
 
-void move(int L_a_pin, int L_b_pin, int L_pwm_pin, int R_a_pin, int R_b_pin, int R_pwm_pin, float velocity, float direction) {
-    float L_velocity = velocity;
-    float R_velocity = velocity;
+void moveRight() {
+    analogWrite(Motor_L_PWM_PIN, MOTOR_SPEED);
+    digitalWrite(Motor_L_A_PIN, HIGH);
+    digitalWrite(Motor_L_B_PIN, LOW);
 
-    if (direction >= 0) {
-        R_velocity *= (1 - 2 * direction);
-    } else {
-        L_velocity *= (1 + 2 * direction);
-    }
-
-    int L_output = map(constrain(abs(L_velocity), 0, VELOCITY_MAX), 0, VELOCITY_MAX, 0, 255);
-    int R_output = map(constrain(abs(R_velocity), 0, VELOCITY_MAX), 0, VELOCITY_MAX, 0, 255);
-
-    digitalWrite(L_a_pin, L_velocity >= 0);
-    digitalWrite(L_b_pin, L_velocity < 0);
-    digitalWrite(R_a_pin, R_velocity >= 0);
-    digitalWrite(R_b_pin, R_velocity < 0);
-
-    analogWrite(L_pwm_pin, L_output);
-    analogWrite(R_pwm_pin, R_output);
+    analogWrite(Motor_R_PWM_PIN, 0);
+    digitalWrite(Motor_R_A_PIN, LOW);
+    digitalWrite(Motor_R_B_PIN, LOW);
+    Serial.println("Turning right");
 }
+
+void stopMotors() {
+    analogWrite(Motor_L_PWM_PIN, 0);
+    digitalWrite(Motor_L_A_PIN, LOW);
+    digitalWrite(Motor_L_B_PIN, LOW);
+
+    analogWrite(Motor_R_PWM_PIN, 0);
+    digitalWrite(Motor_R_A_PIN, LOW);
+    digitalWrite(Motor_R_B_PIN, LOW);
+    Serial.println("Stopping motors");
+}
+
+void graspOn() {
+    isGrasping = true;
+    servoMotor.write(-30); // サーボモーターを90度に回転
+    Serial.println("Grasping: ON");
+}
+
+void graspOff() {
+    isGrasping = false;
+    servoMotor.write(90); // サーボモーターを0度に戻す
+    Serial.println("Grasping: OFF");
+}
+
