@@ -62,7 +62,7 @@ typedef struct enc_str{
     bool moved = false;
     bool rotate_forward = true;
     unsigned long time = 0;
-    float omega[WMA_NUM] = {0.f};
+    float omega[WMA_NUM + 1] = {0.f};
     float WMA_omega = 0.f;
     float WMA_total = 0.f;
     float WMA_numerator = 0.f;
@@ -208,9 +208,11 @@ void loop(){
                 break;
         }
     }else{
-        Serial.println("No device");
-        // Serial.print(section);
-        // Serial.print(",");
+        //Serial.println("No device");
+        Serial.print(section);
+        Serial.print(",");
+        my_servo(90);
+        // servo_test();
         // Serial.print(speed_data[0].target);
         // Serial.print(",");
         // Serial.print(speed_data[1].target);
@@ -222,6 +224,17 @@ void loop(){
         // Serial.print(speed_data[0].output);
         // Serial.print(",");
         // Serial.println(speed_data[1].output);
+        Serial.print(robot.headding);
+        Serial.print(",");
+        Serial.print(robot.x);
+        Serial.print(",");
+        Serial.print(robot.y);
+        Serial.print(",");
+        Serial.print(robot.v);
+        Serial.print(",");
+        Serial.print(speed_data[0].output);
+        Serial.print(",");
+        Serial.println(speed_data[1].output);
         // Serial.print(enc[0].omega[0]);
         // Serial.print(",");
         // Serial.print(enc[0].omega[1]);
@@ -237,8 +250,11 @@ void loop(){
         // Serial.print(speed_data[0].output);
         // Serial.print(",");
         // Serial.println(speed_data[1].output);
-       // if(millis() > 10000) move_data(55, 0);
+        //if(millis() > 5000) move_data(55, 0);
         section = local_logic(section, grab_state);
+        // if(grab(!grab_state) == !grab_state){
+        //     grab_state = !grab_state;
+        // }
     }
 
 }
@@ -325,7 +341,7 @@ void encorder_counter(int enc_num){
     unsigned long diff_time;
 
     if(enc[enc_num].moved){
-        for(i = WMA_NUM - 1; i > 0; i--){
+        for(i = WMA_NUM; i > 0; i--){
             enc[enc_num].omega[i] = enc[enc_num].omega[i - 1];
         }
         /*角速度の計算*/
@@ -352,7 +368,7 @@ void enc_zero(int enc_num, int prev_count){
     int i;
 
     if(enc[enc_num].count == prev_count){
-        for(i = WMA_NUM - 1; i > 0; i--){
+        for(i = WMA_NUM; i > 0; i--){
             enc[enc_num].omega[i] = enc[enc_num].omega[i - 1];
         }
         enc[enc_num].omega[0] = 0;
@@ -484,7 +500,7 @@ void speed_pid(int i){
 /*加重平均速度の算出*/
 void calc_wma(int enc_num){
     /*加重移動平均*/
-    enc[enc_num].WMA_total += enc[enc_num].omega[0] - enc[enc_num].omega[WMA_NUM - 1];
+    enc[enc_num].WMA_total += enc[enc_num].omega[0] - enc[enc_num].omega[WMA_NUM];
     enc[enc_num].WMA_numerator += WMA_NUM * enc[enc_num].omega[0] - enc[enc_num].WMA_total;
     enc[enc_num].WMA_omega = 2 * enc[enc_num].WMA_numerator / (WMA_NUM * (WMA_NUM + 1));
 }
@@ -493,15 +509,15 @@ void servo_test(){
     static int i = 0;
 
     if(i == 0){
-        my_servo(-90);
+        my_servo(-30);
         delay(5000);
     }
-    for(i = -90; i < 30; i += 10){
+    for(i = -30; i < 90; i += 10){
         my_servo(i);
         Serial.println(i);
         delay(200);
     }
-    for(i = 30; i > -90; i -= 10){
+    for(i = 90; i > -30; i -= 10){
         my_servo(i);
         Serial.println(i);
         delay(200);
@@ -612,9 +628,9 @@ bool grab(bool grab_state){
     static unsigned long prev_time = 0;
     if(millis() - prev_time < 1000) return !grab_state;
     if(grab_state){
-        my_servo(-90);
+        my_servo(90);
     }else{
-        my_servo(30);
+        my_servo(-30);
     }
     prev_time = millis();
     return grab_state;
