@@ -1,112 +1,118 @@
-import processing.net.*;
+import processing.serial.*;
 
-Client client;
-String ip = "192.48.56.1"; // ArduinoのIPアドレス
-int port = 80; // Arduinoのポート番号
+Serial myPort;
 
-// UI要素
-float centerX, centerY; // 円形の中心位置
-float pointerX, pointerY; // ポインタの位置
-float radius; // ジョイスティックの半径
-boolean isGrasping = false; // 把持機構の状態
-boolean isMoving = false; // ロボットが移動中かどうか
+float centerX, centerY, radius;
+float pointerX, pointerY;
+boolean isMoving = false;
+boolean isGrasping = false;
+int thermistorValue = 0; // サーミスタの値を保存
 
 void setup() {
   size(400, 400);
-  client = new Client(this, ip, port); // クライアントを初期化
+
   centerX = width / 2;
   centerY = height / 2;
-  radius = width / 4;
+  radius = 100;
   pointerX = centerX;
   pointerY = centerY;
+  
+  String portName = "/dev/tty.usbmodemF412FA9BEC602";
+  myPort = new Serial(this, portName, 9600);
+  myPort.bufferUntil('\n'); // 改行まで受信を待つ
 }
 
 void draw() {
   background(255);
 
-  // ジョイスティックの円を描画
+  // 円と方向UI
   stroke(0);
   noFill();
   ellipse(centerX, centerY, radius * 2, radius * 2);
 
-  // 中心円を描画
   fill(200);
   ellipse(centerX, centerY, 50, 50);
 
-  // マウスが押されているとき、ポインタをマウス位置に追従させる
-  if (isMoving) {
-    float dx = mouseX - centerX;
-    float dy = mouseY - centerY;
-    float distance = dist(centerX, centerY, mouseX, mouseY);
-
-    if (distance <= radius) {
-      pointerX = mouseX;
-      pointerY = mouseY;
-    } else {
-      PVector direction = new PVector(dx, dy).normalize().mult(radius);
-      pointerX = centerX + direction.x;
-      pointerY = centerY + direction.y;
-    }
-    sendDirection();
-  } else {
-    pointerX = centerX;
-    pointerY = centerY;
-  }
-
-  // ポインタを描画
   fill(150, 0, 0);
   ellipse(pointerX, pointerY, 20, 20);
 
-  // グリップボタンの表示
+  // つかむボタン
   fill(isGrasping ? color(0, 150, 0) : color(150, 0, 0));
   rect(width - 80, height - 50, 60, 30);
   fill(255);
   textAlign(CENTER, CENTER);
   text("Grasp", width - 50, height - 35);
+
+  // サーミスタ値の表示
+  fill(0);
+  textSize(16);
+  text("Thermistor: " + thermistorValue, 20, height - 20);
 }
 
-// クリック時に移動開始、ボタンの切り替え
-void mousePressed() {
-  // グリップボタンをクリックした場合
-  if (mouseX > width - 80 && mouseX < width - 20 && mouseY > height - 50 && mouseY < height - 20) {
-    isGrasping = !isGrasping; // 把持状態をトグル
-    sendGraspCommand();
+void mouseDragged() {
+  float distance = dist(mouseX, mouseY, centerX, centerY);
+
+  if (distance <= radius) {
+    pointerX = mouseX;
+    pointerY = mouseY;
   } else {
-    isMoving = true; // 移動開始
+    PVector direction = new PVector(mouseX - centerX, mouseY - centerY).normalize().mult(radius);
+    pointerX = centerX + direction.x;
+    pointerY = centerY + direction.y;
   }
+
+  isMoving = true;
+  sendDirection();
 }
 
 void mouseReleased() {
-  isMoving = false; // 移動停止
-  sendStopCommand(); // Arduinoに停止信号を送信
+  isMoving = false;
+  sendStop();
 }
 
-// ポインタの方向と速度に基づきArduinoにデータ送信
+void mousePressed() {
+  if (mouseX > width - 80 && mouseX < width - 20 && mouseY > height - 50 && mouseY < height - 20) {
+    isGrasping = !isGrasping;
+    sendGraspToggle();
+  }
+}
+
+void serialEvent(Serial p) {
+  String inData = p.readStringUntil('\n'); // 改行までのデータを読み取る
+  inData = inData.trim(); // 不要な空白を削除
+
+  if (inData.startsWith("THERMISTOR")) {
+    String[] parts = split(inData, ' ');
+    if (parts.length > 1) {
+      thermistorValue = int(parts[1]); // サーミスタの値を取得
+    }
+  }
+}
+
 void sendDirection() {
-  if (client.active()) {
-    float dx = pointerX - centerX;
-    float dy = pointerY - centerY;
-    float distance = dist(centerX, centerY, pointerX, pointerY);
-    float speed = map(constrain(distance, 0, radius), 0, radius, 0, 100); // 速度を計算
-    float angle = atan2(dy, dx) * 180 / PI; // 中心からの角度を取得
+  float dx = pointerX - centerX;
+  float dy = pointerY - centerY;
 
-    // データ形式例: "MOVE angle speed\n"
-    String command = "MOVE " + nf(angle, 0, 2) + " " + nf(speed, 0, 2) + "\n";
-    client.write(command);
+  if (dy < -radius / 2) {
+    sendCommand("MOVE FORWARD");
+  } else if (dy > radius / 2) {
+    sendCommand("MOVE BACKWARD");
+  } else if (dx > radius / 2) {
+    sendCommand("MOVE RIGHT");
+  } else if (dx < -radius / 2) {
+    sendCommand("MOVE LEFT");
   }
 }
 
-// グリップ状態をArduinoに送信
-void sendGraspCommand() {
-  if (client.active()) {
-    String command = isGrasping ? "GRASP_ON\n" : "GRASP_OFF\n";
-    client.write(command);
-  }
+void sendStop() {
+  sendCommand("STOP");
 }
 
-// 停止コマンドをArduinoに送信
-void sendStopCommand() {
-  if (client.active()) {
-    client.write("STOP\n");
-  }
+void sendGraspToggle() {
+  sendCommand(isGrasping ? "GRASP ON" : "GRASP OFF");
+}
+
+void sendCommand(String command) {
+  println("Sending: " + command);
+  myPort.write(command + "\n");
 }
