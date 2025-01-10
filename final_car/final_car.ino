@@ -184,6 +184,7 @@ void loop(){
         WiFiClient client = server.available();
         if (!client) {
             Serial.println("NO CLIENT");
+
             return;
         }
         if (!client.connected()) {
@@ -206,8 +207,10 @@ void loop(){
                 Serial.println("message");  //受け取った文字をLEDに表示
                 break;
         }
-    } else {
-        //Serial.println("No device");
+    }else{
+        Serial.println("No device");
+        // Serial.print(section);
+        // Serial.print(",");
         // Serial.print(speed_data[0].target);
         // Serial.print(",");
         // Serial.print(speed_data[1].target);
@@ -219,23 +222,23 @@ void loop(){
         // Serial.print(speed_data[0].output);
         // Serial.print(",");
         // Serial.println(speed_data[1].output);
-        Serial.print(enc[0].omega[0]);
-        Serial.print(",");
-        Serial.print(enc[0].omega[1]);
-        Serial.print(",");
-        Serial.print(enc[0].omega[2]);
-        Serial.print(",");
-        Serial.print(enc[0].omega[3]);
-        Serial.print(",");
-        Serial.print(enc[0].omega[4]);
-        Serial.print(",");
-        Serial.print(enc[0].WMA_omega);
-        Serial.print(",");
-        Serial.print(speed_data[0].output);
-        Serial.print(",");
-        Serial.println(speed_data[1].output);
-        if(millis() > 10000) move_data(55, 0);
-        //section = local_logic(section, grab_state);
+        // Serial.print(enc[0].omega[0]);
+        // Serial.print(",");
+        // Serial.print(enc[0].omega[1]);
+        // Serial.print(",");
+        // Serial.print(enc[0].omega[2]);
+        // Serial.print(",");
+        // Serial.print(enc[0].omega[3]);
+        // Serial.print(",");
+        // Serial.print(enc[0].omega[4]);
+        // Serial.print(",");
+        // Serial.print(enc[0].WMA_omega);
+        // Serial.print(",");
+        // Serial.print(speed_data[0].output);
+        // Serial.print(",");
+        // Serial.println(speed_data[1].output);
+       // if(millis() > 10000) move_data(55, 0);
+        section = local_logic(section, grab_state);
     }
 
 }
@@ -355,6 +358,7 @@ void enc_zero(int enc_num, int prev_count){
         enc[enc_num].omega[0] = 0;
         calc_wma(enc_num);
     }
+    digitalWrite(TEST_PIN, !digitalRead(TEST_PIN));
 }
 
 /*Wifi通信のセットアップ*/
@@ -509,36 +513,36 @@ int local_logic(int section, bool grab_state){
 
     switch(section){
         case Section1:
-            target_position[0] = 0;
-            target_position[1] = 0;
+            target_position[0] = 100;
+            target_position[1] = 300;
             break;
         case Section2:
-            target_position[0] = 0;
-            target_position[1] = 0;
+            target_position[0] = 100;
+            target_position[1] = 800;
             break;
         case Section4:
-            target_position[0] = 0;
-            target_position[1] = 0;
+            target_position[0] = -100;
+            target_position[1] = 300;
             break;
         case Section5:
-            target_position[0] = 0;
-            target_position[1] = 0;
+            target_position[0] = -100;
+            target_position[1] = 800;
             break;
         case Section7:
-            target_position[0] = 0;
-            target_position[1] = 0;
+            target_position[0] = 200;
+            target_position[1] = 500;
             break;
         case Section8:
-            target_position[0] = 0;
-            target_position[1] = 0;
+            target_position[0] = 300;
+            target_position[1] = 800;
             break;
         case Section10:
-            target_position[0] = 0;
-            target_position[1] = 0;
+            target_position[0] = -200;
+            target_position[1] = 500;
             break;
         case Section11:
-            target_position[0] = 0;
-            target_position[1] = 0;
+            target_position[0] = -300;
+            target_position[1] = 500;
             break;
         case Section3:
         case Section6:
@@ -553,13 +557,54 @@ int local_logic(int section, bool grab_state){
         if(grab(!grab_state) == !grab_state){
             grab_state = !grab_state;
             section++;
+            if(section > 12) section = 0;
         }
     }
     return section;
 }
 
 int local_move(float target_x, float target_y){
+    float x_diff, y_diff;
+    float direction, distance;
+    float angle,speed;
 
+    noInterrupts();
+    direction = atan2((target_x - x_diff), (target_y - y_diff));
+    distance = sqrt(pow(target_x - x_diff, 2) + pow(target_y - y_diff, 2));
+    interrupts();
+
+    /*後ろへはバック*/
+    if(abs(direction) > 1.57){
+        direction = 2 * PI - direction;
+        angle = -1;
+        speed = -1;
+    }else{
+        angle = 1;
+        speed = 1;
+    }
+
+    /*5cm以内に近づいたらOK*/
+    if(abs(distance) < 50) return 1;
+
+    if(direction > -0.085 && direction < 0.085){
+        angle *= direction * 2;
+        speed *= 50;
+    }else{
+        /*回転角*/
+        if(direction < 0){
+            angle = -1;
+        }else{
+            angle = 1;
+        }
+        /*スピード*/
+        if(direction > -0.25 && direction < 0.25){
+            speed = 50;
+        }else{
+            speed = abs(direction) * 200;
+        }
+    }
+
+    move_data(angle, speed);
     return 0;
 }
 
