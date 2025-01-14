@@ -15,6 +15,8 @@
 
 #define Servo_PWM_PIN 6
 
+#define Thermistor_PIN A0
+
 #define TEST_PIN 13
 
 /*定数*/
@@ -170,92 +172,125 @@ void setup() {
     MotorR.begin(5000, 0.f);
     Servo.begin(50, 0.f);
     Servo.suspend();
+    grab(false);
 }
 
 void loop(){
     static int i = 0;
     static int section = 0;
     static bool grab_state = "false";
+    static String command;
 
+    int thermistorValue = analogRead(Thermistor_PIN);
 
-    // アクセスポイントに他のデバイスがつながるのを待つ
-    if (WiFi.status() == WL_AP_CONNECTED) {
-        //接続されているクライアントを確認
-        WiFiClient client = server.available();
-        if (!client) {
-            Serial.println("NO CLIENT");
+    grab_state = grab(!grab_state);
 
-            return;
-        }
-        if (!client.connected()) {
-            client.stop();  //接続が切れてたらクライアントを終了
-            return;
-        }
-        if (client.available() <= 0) {
-            return;  // データが来なかったらなにもしない
-        }
+    //servo_test();
+    // Serial.println("THERMISTOR " + String(thermistorValue));
 
-        c = client.read();
-        // 以下はコマンドの解釈．'U'のときのみ，A0ピンの値をPCに送信する．
-        // それ以外のときは，コマンドの文字をそのままLEDに表示する．
-        switch (c) {
-            case 'U':  //センサ値を符号なし2バイトで送信
-                client.println("50"); 
-                break;
-            default:
-                sprintf(message, "%c  ", c);
-                Serial.println("message");  //受け取った文字をLEDに表示
-                break;
-        }
-    }else{
-        //Serial.println("No device");
-        Serial.print(section);
-        Serial.print(",");
-        my_servo(90);
-        // servo_test();
-        // Serial.print(speed_data[0].target);
-        // Serial.print(",");
-        // Serial.print(speed_data[1].target);
-        // Serial.print(",");
-        // Serial.print(enc[0].WMA_omega);
-        // Serial.print(",");
-        // Serial.print(enc[1].WMA_omega);
-        // Serial.print(",");
-        // Serial.print(speed_data[0].output);
-        // Serial.print(",");
-        // Serial.println(speed_data[1].output);
-        Serial.print(robot.headding);
-        Serial.print(",");
-        Serial.print(robot.x);
-        Serial.print(",");
-        Serial.print(robot.y);
-        Serial.print(",");
-        Serial.print(robot.v);
-        Serial.print(",");
-        Serial.print(speed_data[0].output);
-        Serial.print(",");
-        Serial.println(speed_data[1].output);
-        // Serial.print(enc[0].omega[0]);
-        // Serial.print(",");
-        // Serial.print(enc[0].omega[1]);
-        // Serial.print(",");
-        // Serial.print(enc[0].omega[2]);
-        // Serial.print(",");
-        // Serial.print(enc[0].omega[3]);
-        // Serial.print(",");
-        // Serial.print(enc[0].omega[4]);
-        // Serial.print(",");
-        // Serial.print(enc[0].WMA_omega);
-        // Serial.print(",");
-        // Serial.print(speed_data[0].output);
-        // Serial.print(",");
-        // Serial.println(speed_data[1].output);
-        //if(millis() > 5000) move_data(55, 0);
-        section = local_logic(section, grab_state);
-        // if(grab(!grab_state) == !grab_state){
-        //     grab_state = !grab_state;
-        // }
-    }
+    // // 通常のコマンド処理
+    // if (Serial.available()) {
+    //     command = Serial.readStringUntil('\n');
+    //     command.trim();
+    //     Serial.println("Received command: " + command); // デバッグ用
+    // }
+    
+    if(millis() > 5000) move_data(55, 0);
+
+    // if (command == "MOVE FORWARD") {
+    //     //moveForward();
+    // } else if (command == "MOVE BACKWARD") {
+    //     //moveBackward();
+    // } else if (command == "MOVE LEFT") {
+    //         //moveLeft();
+    // } else if (command == "MOVE RIGHT") {
+    //     //moveRight();
+    // } else if (command == "STOP") {
+    //     move_data(0,0);
+    //     //movedata();
+    // } else if (command == "GRASP ON") {
+    //     grab_state = grab(true);
+    // } else if (command == "GRASP OFF") {
+    //     grab_state = grab(false);
+    // }
+
+    // // アクセスポイントに他のデバイスがつながるのを待つ
+    // if (WiFi.status() == WL_AP_CONNECTED) {
+    //     //接続されているクライアントを確認
+    //     WiFiClient client = server.available();
+    //     if (!client) {
+    //         Serial.println("NO CLIENT");
+
+    //         return;
+    //     }
+    //     if (!client.connected()) {
+    //         client.stop();  //接続が切れてたらクライアントを終了
+    //         return;
+    //     }
+    //     if (client.available() <= 0) {
+    //         return;  // データが来なかったらなにもしない
+    //     }
+
+    //     c = client.read();
+    //     // 以下はコマンドの解釈．'U'のときのみ，A0ピンの値をPCに送信する．
+    //     // それ以外のときは，コマンドの文字をそのままLEDに表示する．
+    //     switch (c) {
+    //         case 'U':  //センサ値を符号なし2バイトで送信
+    //             client.println("50"); 
+    //             break;
+    //         default:
+    //             sprintf(message, "%c  ", c);
+    //             Serial.println("message");  //受け取った文字をLEDに表示
+    //             break;
+    //     }
+    // }else{
+    //     //Serial.println("No device");
+    //     Serial.print(section);
+    //     Serial.print(",");
+    //     my_servo(90);
+    //     // servo_test();
+    //     // Serial.print(speed_data[0].target);
+    //     // Serial.print(",");
+    //     // Serial.print(speed_data[1].target);
+    //     // Serial.print(",");
+    //     // Serial.print(enc[0].WMA_omega);
+    //     // Serial.print(",");
+    //     // Serial.print(enc[1].WMA_omega);
+    //     // Serial.print(",");
+    //     // Serial.print(speed_data[0].output);
+    //     // Serial.print(",");
+    //     // Serial.println(speed_data[1].output);
+    //     // Serial.print(robot.headding);
+    //     // Serial.print(",");
+    //     // Serial.print(robot.x);
+    //     // Serial.print(",");
+    //     // Serial.print(robot.y);
+    //     // Serial.print(",");
+    //     // Serial.print(robot.v);
+    //     // Serial.print(",");
+    //     // Serial.print(speed_data[0].output);
+    //     // Serial.print(",");
+    //     // Serial.println(speed_data[1].output);
+    //     // Serial.print(enc[0].omega[0]);
+    //     // Serial.print(",");
+    //     // Serial.print(enc[0].omega[1]);
+    //     // Serial.print(",");
+    //     // Serial.print(enc[0].omega[2]);
+    //     // Serial.print(",");
+    //     // Serial.print(enc[0].omega[3]);
+    //     // Serial.print(",");
+    //     // Serial.print(enc[0].omega[4]);
+    //     // Serial.print(",");
+    //     // Serial.print(enc[0].WMA_omega);
+    //     // Serial.print(",");
+    //     // Serial.print(speed_data[0].output);
+    //     // Serial.print(",");
+    //     // Serial.println(speed_data[1].output);
+    //     //if(millis() > 5000) move_data(55, 0);
+    //     section = local_logic(section, &grab_state);
+    //     grab_state = grab(!grab_state);
+    // }
+    
 
 }
 
@@ -524,7 +559,7 @@ void servo_test(){
     }
 }
 
-int local_logic(int section, bool grab_state){
+int local_logic(int section, bool *grab_state){
     float target_position[2];
 
     switch(section){
@@ -566,12 +601,12 @@ int local_logic(int section, bool grab_state){
         case Section12:
             target_position[0] = 0.f;
             target_position[1] = 0.f;
-            grab_state = true;
+            *grab_state = true;
             break;
     }
     if(local_move(target_position[0],target_position[1]) == 1){
-        if(grab(!grab_state) == !grab_state){
-            grab_state = !grab_state;
+        if(grab(!*grab_state) == !*grab_state){
+            *grab_state = !*grab_state;
             section++;
             if(section > 12) section = 0;
         }
@@ -628,9 +663,9 @@ bool grab(bool grab_state){
     static unsigned long prev_time = 0;
     if(millis() - prev_time < 1000) return !grab_state;
     if(grab_state){
-        my_servo(90);
-    }else{
         my_servo(-30);
+    }else{
+        my_servo(90);
     }
     prev_time = millis();
     return grab_state;
