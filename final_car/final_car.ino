@@ -1,4 +1,4 @@
-#include <WiFi.h>
+//#include <WiFi.h>
 #include "FspTimer.h"
 #include"pwm.h"
 
@@ -45,14 +45,14 @@
 #define ANGLE_KD 0
 #define ANGLE_MAX 15
 
-/* Wi-Fi 設定 */
-const char* ssid = "cafe_03";
-const char* password = "123456789";
-byte IP[] = { 192, 48, 56, 1 };
-int PORT = 80;
-int status = WL_IDLE_STATUS;
+// /* Wi-Fi 設定 */
+// const char* ssid = "cafe_03";
+// const char* password = "123456789";
+// byte IP[] = { 192, 48, 56, 1 };
+// int PORT = 80;
+// int status = WL_IDLE_STATUS;
 
-WiFiServer server(PORT);
+// WiFiServer server(PORT);
 FspTimer time_interrupt;
 PwmOut MotorL(Motor_L_PWM_PIN);
 PwmOut MotorR(Motor_R_PWM_PIN);
@@ -158,7 +158,7 @@ void setup() {
     Serial.begin(9600);
 
     /*Wi-Fi通信*/
-    Wifi_setup();
+    //Wifi_setup();
 
     /*エンコーダ割り込み設定*/
     attachInterrupt(digitalPinToInterrupt(ENC_L_PIN), enc_counter_L, CHANGE);
@@ -182,37 +182,40 @@ void loop(){
     static String command;
 
     int thermistorValue = analogRead(Thermistor_PIN);
+    //Serial.println("THERMISTOR " + String(thermistorValue));
 
-    grab_state = grab(!grab_state);
+    //grab_state = grab(!grab_state);
 
     //servo_test();
-    // Serial.println("THERMISTOR " + String(thermistorValue));
 
-    // // 通常のコマンド処理
+    //  通常のコマンド処理
     // if (Serial.available()) {
     //     command = Serial.readStringUntil('\n');
     //     command.trim();
     //     Serial.println("Received command: " + command); // デバッグ用
     // }
-    
-    if(millis() > 5000) move_data(55, 0);
 
-    // if (command == "MOVE FORWARD") {
-    //     //moveForward();
-    // } else if (command == "MOVE BACKWARD") {
-    //     //moveBackward();
-    // } else if (command == "MOVE LEFT") {
-    //         //moveLeft();
-    // } else if (command == "MOVE RIGHT") {
-    //     //moveRight();
-    // } else if (command == "STOP") {
-    //     move_data(0,0);
-    //     //movedata();
-    // } else if (command == "GRASP ON") {
-    //     grab_state = grab(true);
-    // } else if (command == "GRASP OFF") {
-    //     grab_state = grab(false);
-    // }
+    if (command == "MOVE FORWARD") {
+        move_data(40, 0);
+    } else if (command == "MOVE BACKWARD") {
+        move_data(-40, 0);
+    } else if (command == "MOVE LEFT") {
+        move_data(40, -1);
+    } else if (command == "MOVE RIGHT") {
+        move_data(40, 1);
+    } else if (command == "STOP") {
+        move_data(0,0);
+        //movedata();
+    } else if (command == "GRASP ON") {
+        grab_state = grab(true);
+    } else if (command == "GRASP OFF") {
+        grab_state = grab(false);
+    } else if (command == "AUTONOMUS ON"){
+        if(millis() > 5000) sectiono = local_logic(section, &grab_state);
+    }
+
+    if(millis() > 5000) sectiono = local_logic(section, &grab_state);;
+    //if(millis() > 5000) move_data(55, 0);
 
     // // アクセスポイントに他のデバイスがつながるのを待つ
     // if (WiFi.status() == WL_AP_CONNECTED) {
@@ -245,32 +248,36 @@ void loop(){
     //     }
     // }else{
     //     //Serial.println("No device");
-    //     Serial.print(section);
+        Serial.print(section);
     //     Serial.print(",");
     //     my_servo(90);
     //     // servo_test();
-    //     // Serial.print(speed_data[0].target);
-    //     // Serial.print(",");
-    //     // Serial.print(speed_data[1].target);
-    //     // Serial.print(",");
-    //     // Serial.print(enc[0].WMA_omega);
-    //     // Serial.print(",");
-    //     // Serial.print(enc[1].WMA_omega);
-    //     // Serial.print(",");
-    //     // Serial.print(speed_data[0].output);
-    //     // Serial.print(",");
-    //     // Serial.println(speed_data[1].output);
-    //     // Serial.print(robot.headding);
-    //     // Serial.print(",");
-    //     // Serial.print(robot.x);
-    //     // Serial.print(",");
-    //     // Serial.print(robot.y);
-    //     // Serial.print(",");
-    //     // Serial.print(robot.v);
-    //     // Serial.print(",");
-    //     // Serial.print(speed_data[0].output);
-    //     // Serial.print(",");
-    //     // Serial.println(speed_data[1].output);
+        // Serial.print(speed_data[0].target);
+        // Serial.print(",");
+        // Serial.print(speed_data[1].target);
+        // Serial.print(",");
+        // Serial.print(enc[0].WMA_omega);
+        // Serial.print(",");
+        // Serial.print(enc[1].WMA_omega);
+        // Serial.print(",");
+        // Serial.print(speed_data[0].output);
+        // Serial.print(",");
+        // Serial.println(speed_data[1].output);
+        Serial.print(robot.headding);
+        Serial.print(",");
+        Serial.print(robot.x);
+        Serial.print(",");
+        Serial.print(robot.y);
+        Serial.print(",");
+        Serial.print(robot.v);
+        Serial.print(",");
+        Serial.print(enc[0].WMA_omega);
+        Serial.print(",");
+        Serial.print(enc[1].WMA_omega);
+        Serial.print(",");
+        Serial.print(speed_data[0].output);
+        Serial.print(",");
+        Serial.println(speed_data[1].output);
     //     // Serial.print(enc[0].omega[0]);
     //     // Serial.print(",");
     //     // Serial.print(enc[0].omega[1]);
@@ -287,7 +294,7 @@ void loop(){
     //     // Serial.print(",");
     //     // Serial.println(speed_data[1].output);
     //     //if(millis() > 5000) move_data(55, 0);
-    //     section = local_logic(section, &grab_state);
+    //     section = v
     //     grab_state = grab(!grab_state);
     // }
     
@@ -412,18 +419,18 @@ void enc_zero(int enc_num, int prev_count){
     digitalWrite(TEST_PIN, !digitalRead(TEST_PIN));
 }
 
-/*Wifi通信のセットアップ*/
-void Wifi_setup(){
-    WiFi.config(IPAddress(IP));
-    WiFi.beginAP(ssid, password);
-    while (WiFi.status() != WL_AP_LISTENING) {
-        delay(500);
-        Serial.println("Starting AP...");
-    }
-    Serial.println("AP started");
-    Serial.println(WiFi.softAPIP());
-    server.begin();
-}
+// /*Wifi通信のセットアップ*/
+// void Wifi_setup(){
+//     WiFi.config(IPAddress(IP));
+//     WiFi.beginAP(ssid, password);
+//     while (WiFi.status() != WL_AP_LISTENING) {
+//         delay(500);
+//         Serial.println("Starting AP...");
+//     }
+//     Serial.println("AP started");
+//     Serial.println(WiFi.softAPIP());
+//     server.begin();
+// }
 
 /*タイマ割り込み設定*/
 int time_interrupt_setup(){
@@ -517,7 +524,7 @@ void motor_output(float L_output ,float R_output){
 /*直進補正*/
 void angle_pid(){
     //angle_data.target_diff = angle_data.target - robot.rho;
-    angle_data.output = 0;
+    angle_data.output = 0.1;
 }
 
 /*速度制御*/
