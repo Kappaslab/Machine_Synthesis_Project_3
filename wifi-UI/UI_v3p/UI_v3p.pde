@@ -7,6 +7,7 @@ float pointerX, pointerY;
 boolean isMoving = false;
 boolean isGrasping = false;
 int thermistorValue = 0; // サーミスタの値を保存
+boolean isAutonomous = false;
 
 void setup() {
   size(400, 400);
@@ -17,13 +18,19 @@ void setup() {
   pointerX = centerX;
   pointerY = centerY;
   
-  String portName = "/dev/tty.usbmodemF412FA9BEC602";
+  String portName = "/dev/tty.usbmodemF0F5BD528D302";
   myPort = new Serial(this, portName, 9600);
   myPort.bufferUntil('\n'); // 改行まで受信を待つ
 }
 
 void draw() {
   background(255);
+
+  fill(isAutonomous ? color(0, 150, 0) : color(150, 0, 0));
+  rect(20, 20, 100, 50);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  text("Autonomous", 70, 45);
 
   // 円と方向UI
   stroke(0);
@@ -66,14 +73,22 @@ void mouseDragged() {
 }
 
 void mouseReleased() {
-  isMoving = false;
-  sendStop();
+  float distance = dist(pointerX, pointerY, centerX, centerY);
+  if (distance < 25) { // 中心の黒い円にポインタが入った場合のみSTOPを送信
+    sendStop();
+    isMoving = false;
+  }
 }
 
 void mousePressed() {
   if (mouseX > width - 80 && mouseX < width - 20 && mouseY > height - 50 && mouseY < height - 20) {
     isGrasping = !isGrasping;
     sendGraspToggle();
+  }
+  if (mouseX >= 20 && mouseX <= 120 && mouseY >= 20 && mouseY <= 70) {
+    println("Autonomous button clicked"); // デバッグ用ログ
+    isAutonomous = !isAutonomous;
+    sendCommand(isAutonomous ? "AUTONOMOUS ON" : "AUTONOMOUS OFF");
   }
 }
 
