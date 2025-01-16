@@ -211,10 +211,10 @@ void loop(){
     } else if (command == "GRASP OFF") {
         grab_state = grab(false);
     } else if (command == "AUTONOMUS ON"){
-        if(millis() > 5000) sectiono = local_logic(section, &grab_state);
+        if(millis() > 5000) section = local_logic(section, &grab_state);
     }
 
-    if(millis() > 5000) sectiono = local_logic(section, &grab_state);;
+    //if(millis() > 5000) section = local_logic(section, &grab_state);;
     //if(millis() > 5000) move_data(55, 0);
 
     // // アクセスポイントに他のデバイスがつながるのを待つ
