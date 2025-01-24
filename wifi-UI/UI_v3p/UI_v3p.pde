@@ -6,6 +6,7 @@ float centerX, centerY, radius;
 float pointerX, pointerY;
 boolean isMoving = false;
 boolean isGrasping = false;
+boolean graspivent = false;
 int thermistorValue = 0; // サーミスタの値を保存
 boolean isAutonomous = false;
 
@@ -18,7 +19,7 @@ void setup() {
   pointerX = centerX;
   pointerY = centerY;
   
-  String portName = "/dev/tty.usbmodemF0F5BD528D302";
+  String portName = "COM4";
   myPort = new Serial(this, portName, 9600);
   myPort.bufferUntil('\n'); // 改行まで受信を待つ
 }
@@ -74,9 +75,12 @@ void mouseDragged() {
 
 void mouseReleased() {
   float distance = dist(pointerX, pointerY, centerX, centerY);
-  if (distance < 25) { // 中心の黒い円にポインタが入った場合のみSTOPを送信
-    sendStop();
+  if (distance < 25 && isAutonomous == false &&graspivent == false) { // 中心の黒い円にポインタが入った場合のみSTOPを送信
+        sendStop();
     isMoving = false;
+  }
+  if(graspivent){
+    graspivent = false;
   }
 }
 
@@ -125,6 +129,7 @@ void sendStop() {
 
 void sendGraspToggle() {
   sendCommand(isGrasping ? "GRASP ON" : "GRASP OFF");
+  graspivent = true;
 }
 
 void sendCommand(String command) {

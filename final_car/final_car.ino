@@ -160,6 +160,8 @@ void setup() {
     /*Wi-Fi通信*/
     //Wifi_setup();
 
+    robot.x = 0;
+    robot.y = 0;
     /*エンコーダ割り込み設定*/
     attachInterrupt(digitalPinToInterrupt(ENC_L_PIN), enc_counter_L, CHANGE);
     attachInterrupt(digitalPinToInterrupt(ENC_R_PIN), enc_counter_R, CHANGE);
@@ -180,19 +182,24 @@ void loop(){
     static int section = 0;
     static bool grab_state = "false";
     static String command;
+    static long prev_time = 0;
 
     int thermistorValue = analogRead(Thermistor_PIN);
-    //Serial.println("THERMISTOR " + String(thermistorValue));
+    // if(millis() - prev_time > 100){
+    //     //Serial.println("THERMISTOR " + String(thermistorValue));
+    //     prev_time = millis();
+    // }
+    
 
     //grab_state = grab(!grab_state);
 
     //servo_test();
 
-    //  通常のコマンド処理
-    // if (Serial.available()) {
+     //通常のコマンド処理
+    // if (Serial.available() > 0) {
     //     command = Serial.readStringUntil('\n');
     //     command.trim();
-    //     Serial.println("Received command: " + command); // デバッグ用
+    //     //Serial.println("Received command: " + command); // デバッグ用
     // }
 
     if (command == "MOVE FORWARD") {
@@ -210,12 +217,15 @@ void loop(){
         grab_state = grab(true);
     } else if (command == "GRASP OFF") {
         grab_state = grab(false);
-    } else if (command == "AUTONOMUS ON"){
-        if(millis() > 5000) section = local_logic(section, &grab_state);
+    } else if (command == "AUTONOMOUS ON"){
+        if(millis() > 5000 && millis() < 150000) move_data(55, 0.2);
+        if(millis() > 15000) move_data(-55, 0);
+        
     }
-
+    
+    section = local_logic(section, &grab_state);
     //if(millis() > 5000) section = local_logic(section, &grab_state);;
-    //if(millis() > 5000) move_data(55, 0);
+    // if(millis() > 10000) move_data(0, 0);
 
     // // アクセスポイントに他のデバイスがつながるのを待つ
     // if (WiFi.status() == WL_AP_CONNECTED) {
@@ -248,7 +258,7 @@ void loop(){
     //     }
     // }else{
     //     //Serial.println("No device");
-        Serial.print(section);
+        //Serial.print(section);
     //     Serial.print(",");
     //     my_servo(90);
     //     // servo_test();
@@ -269,7 +279,7 @@ void loop(){
         Serial.print(",");
         Serial.print(robot.y);
         Serial.print(",");
-        Serial.print(robot.v);
+        Serial.print(robot.rho);
         Serial.print(",");
         Serial.print(enc[0].WMA_omega);
         Serial.print(",");
@@ -339,14 +349,19 @@ void timer_callback(timer_callback_args_t *arg){
         v_R = enc[1].WMA_omega * TIER_RADIUS;
         robot.v = (v_L + v_R) / 2;
         /*ロボットの旋回曲率の算出*/
-        robot.rho = 2 * (v_L - v_R) / (ROBOT_WIDTH * (v_L + v_R));
+        if(v_L == v_R){
+            robot.rho = 0;
+        }else{
+            robot.rho = 2 * (v_L - v_R) / (ROBOT_WIDTH * (v_L + v_R));
+        }
+
         /*自己位置推定*/
-        if(v_L = v_R){
-            robot.y += v_L * t;
+        if(robot.rho == 0){
+            robot.y += robot.v * 10;
         }else{
             d_theta = (v_L - v_R) / ROBOT_WIDTH;
-            x_local = (1 - cos(d_theta * t)) / robot.rho;
-            y_local = sin(d_theta * t) / robot.rho;
+            x_local = (1 - cos(d_theta * 10 )) / robot.rho;
+            y_local = sin(d_theta * 10) / robot.rho;
             /*グローバル変換*/
             robot.x += y_local * sin(robot.headding) + x_local * cos(robot.headding);
             robot.y += y_local * cos(robot.headding) - x_local * sin(robot.headding);
@@ -532,8 +547,8 @@ void speed_pid(int i){
     speed_data[i].integral = speed_data[i].target - enc[i].WMA_omega;
     speed_data[i].target_diff = speed_data[i].integral / 0.1;
     speed_data[i].differential = speed_data[i].target_diff / 0.1;
-    speed_data[i].output += speed_data[i].kp * speed_data[i].target_diff + speed_data[i].ki * speed_data[i].integral + speed_data[i].ki * speed_data[i].differential;
-    //speed_data[i].output = (speed_data[i].target + PI) * 100 / (2 * PI) -50;//おためし
+    //speed_data[i].output += speed_data[i].kp * speed_data[i].target_diff + speed_data[i].ki * speed_data[i].integral + speed_data[i].ki * speed_data[i].differential;
+    speed_data[i].output = (speed_data[i].target + PI) * 100 / (2 * PI) -50;//おためし
     if(speed_data[i].output > speed_data[i].max) speed_data[i].output = speed_data[i].max;
     if(speed_data[i].output < -speed_data[i].max) speed_data[i].output = -speed_data[i].max;
 
@@ -658,7 +673,7 @@ int local_move(float target_x, float target_y){
         if(direction > -0.25 && direction < 0.25){
             speed = 50;
         }else{
-            speed = abs(direction) * 200;
+            speed = 20;
         }
     }
 
